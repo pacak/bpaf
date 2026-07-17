@@ -233,10 +233,9 @@ pub struct Help<'a> {
     output: String,
 }
 
-impl std::ops::Index<Place> for Help<'_> {
-    type Output = String;
-    fn index(&self, index: Place) -> &Self::Output {
-        match index {
+impl Help<'_> {
+    fn buf(&self) -> &str {
+        match self.place {
             Place::Named => &self.named,
             Place::Pos => &self.pos,
             Place::Command => &self.commands,
@@ -245,11 +244,9 @@ impl std::ops::Index<Place> for Help<'_> {
             Place::Global => &self.global,
         }
     }
-}
 
-impl std::ops::IndexMut<Place> for Help<'_> {
-    fn index_mut(&mut self, index: Place) -> &mut Self::Output {
-        match index {
+    fn mut_buf(&mut self) -> &mut String {
+        match self.place {
             Place::Named => &mut self.named,
             Place::Pos => &mut self.pos,
             Place::Command => &mut self.commands,
@@ -264,11 +261,11 @@ impl<'a> Visitor<'a> for Help<'a> {
     fn item<'t>(&mut self, item: Item<'a, 't>) {
         use std::fmt::Write as _;
 
-        let place = self.place_for(&item);
+        self.update_place(&item);
         match item {
             Item::OptionParser { info, inner } => {
                 if let Some(descr) = info.descr {
-                    self.copy_text(Place::Body, false, descr);
+                    self.copy_text(false, descr);
                     self.output.push('\n');
                 }
                 if let Some(usage) = info.usage {
@@ -283,7 +280,7 @@ impl<'a> Visitor<'a> for Help<'a> {
 
                 if let Some(header) = info.header {
                     self.output.push('\n');
-                    self.copy_text(Place::Body, false, header);
+                    self.copy_text(false, header);
                 }
 
                 self.footer = info.footer;
@@ -294,12 +291,12 @@ impl<'a> Visitor<'a> for Help<'a> {
                     return;
                 };
 
-                _ = write!(&mut self[place], "{sl:#}");
+                _ = write!(&mut self.mut_buf(), "{sl:#}");
                 self.track_tab(sl.col_width());
-                self.help(place, named.help);
+                self.help(named.help);
 
                 if let Some(env) = named.env.first() {
-                    self.env_status(place, env);
+                    self.env_status(env);
                 }
             }
             Item::Arg { named, meta } => {
@@ -307,11 +304,11 @@ impl<'a> Visitor<'a> for Help<'a> {
                     return;
                 };
 
-                _ = write!(&mut self[place], "{sl:#}={meta}");
+                _ = write!(&mut self.mut_buf(), "{sl:#}={meta}");
                 self.track_tab(sl.col_width() + 1 + meta.width());
-                self.help(place, named.help);
+                self.help(named.help);
                 if let Some(env) = named.env.first() {
-                    self.env_status(place, env);
+                    self.env_status(env);
                 }
             }
             Item::Positional {
@@ -319,9 +316,9 @@ impl<'a> Visitor<'a> for Help<'a> {
                 help,
                 strict: _,
             } => {
-                _ = write!(&mut self[place], "    {meta}");
+                _ = write!(&mut self.mut_buf(), "    {meta}");
                 self.track_tab(meta.width());
-                self.help(place, help);
+                self.help(help);
             }
             Item::Command {
                 names,
@@ -329,12 +326,12 @@ impl<'a> Visitor<'a> for Help<'a> {
                 inner: _,
             } => {
                 let name = lit_name(names);
-                _ = write!(&mut self[place], "{name:#}");
+                _ = write!(&mut self.mut_buf(), "{name:#}");
                 self.track_tab(name.col_width());
-                self.help(place, help);
+                self.help(help);
             }
             Item::Nested { outer, inner } => {
-                let before = self[place].len();
+                let before = self.mut_buf().len();
 
                 let help = match outer {
                     Nest::Named(Flag { named, .. }) => {
@@ -342,22 +339,22 @@ impl<'a> Visitor<'a> for Help<'a> {
                             // pure env nested parser, makes little sense.
                             return;
                         };
-                        _ = write!(&mut self[place], "{:#} ", name);
+                        _ = write!(&mut self.mut_buf(), "{:#} ", name);
                         named.help
                     }
                     Nest::Keyword(keyword) => {
                         let name = lit_name(&keyword.named.names);
-                        _ = write!(&mut self[place], "{:#} ", name);
+                        _ = write!(&mut self.mut_buf(), "{:#} ", name);
                         keyword.named.help
                     }
                 };
 
                 let mut u = Usage::default();
                 inner.vi(&mut u);
-                u.render_to(&mut self[place]);
+                u.render_to(self.mut_buf());
 
-                self.track_tab(self.written_chars_since(place, before));
-                self.help(place, help);
+                self.track_tab(self.written_chars_since(before));
+                self.help(help);
 
                 self.depth += 1;
                 inner.vi(self);
@@ -384,8 +381,8 @@ impl<'a> Visitor<'a> for Help<'a> {
                     }
                 }
 
-                self[place].push_str(text);
-                self[place].push('\n');
+                self.mut_buf().push_str(text);
+                self.mut_buf().push('\n');
             }
         }
     }
@@ -418,23 +415,23 @@ impl Help<'_> {
         }
     }
 
-    fn env_status(&mut self, place: Place, env: &str) {
+    fn env_status(&mut self, env: &str) {
         let status = if std::env::var_os(env).is_some() {
             "is set"
         } else {
             "is not set"
         };
-        self[place].push_str(&format!("\t[env:{env} {status}]\n"));
+        self.mut_buf()
+            .push_str(&format!("\t[env:{env} {status}]\n"));
     }
 
-    fn place_for(&mut self, item: &Item) -> Place {
+    fn update_place(&mut self, item: &Item) {
         if self.depth == 0 {
             self.place = match item {
                 _ if self.in_global > 0 => Place::Global,
                 Item::Flag { .. } | Item::Arg { .. } => Place::Named,
                 Item::Positional { .. } => Place::Pos,
                 Item::Command { .. } => Place::Command,
-                Item::Rendered { .. } => self.place,
                 Item::Nested {
                     outer: Nest::Named(_),
                     ..
@@ -443,13 +440,13 @@ impl Help<'_> {
                     outer: Nest::Keyword(_),
                     ..
                 } => Place::Command,
+                Item::OptionParser { .. } => Place::Body,
                 _ => self.place,
             };
         }
-        self.place
     }
 
-    fn copy_text(&mut self, place: Place, tab: bool, text: &str) {
+    fn copy_text(&mut self, tab: bool, text: &str) {
         // Preserve linebreaks followed by a line that starts with a space.
         // Preserve empty lines.
         // Linebreaks are removed otherwise.
@@ -462,34 +459,34 @@ impl Help<'_> {
                 } else {
                     ' '
                 };
-                self[place].push(join);
+                self.mut_buf().push(join);
 
                 if tab && join == '\n' {
-                    self[place].push('\t');
+                    self.mut_buf().push('\t');
                 }
             }
-            self[place].push_str(line);
+            self.mut_buf().push_str(line);
 
             prev_empty = line.is_empty();
             first = false;
         }
-        self[place].push('\n');
+        self.mut_buf().push('\n');
     }
 
-    fn written_chars_since(&self, place: Place, before: usize) -> usize {
-        let written = &self[place][before..];
+    fn written_chars_since(&self, before: usize) -> usize {
+        let written = &self.buf()[before..];
         crate::miniansi::text_len(written)
     }
 
-    fn help(&mut self, place: Place, help: Option<&str>) {
-        self[place].push('\t');
+    fn help(&mut self, help: Option<&str>) {
+        self.mut_buf().push('\t');
         if let Some(mut help) = help {
             if !self.detailed {
                 help = help.split_once("\n\n").map_or(help, |h| h.0);
             }
-            self.copy_text(place, true, help);
+            self.copy_text(true, help);
         } else {
-            self[place].push('\n');
+            self.mut_buf().push('\n');
         }
     }
 
