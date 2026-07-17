@@ -418,11 +418,8 @@ impl<T: 'static + Clone, P: Parser<Output = T>> Parser for Fallback<T, P> {
         if let Some(f) = self.pprint
             && matches!(visitor.identify(), crate::VKind::Help)
         {
-            let text = f(&self.value);
-            visitor.item(Item::Rendered {
-                text: &text,
-                gr: None,
-            });
+            let text = &f(&self.value);
+            visitor.item(Item::Rendered { text });
         }
         visitor.pop_group();
     }
@@ -485,11 +482,8 @@ where
         if let Some(f) = self.pprint
             && matches!(visitor.identify(), crate::VKind::Help)
         {
-            let text = f(self.fallback);
-            visitor.item(Item::Rendered {
-                text: &text,
-                gr: None,
-            });
+            let text = &f(self.fallback);
+            visitor.item(Item::Rendered { text });
         }
         visitor.pop_group();
     }

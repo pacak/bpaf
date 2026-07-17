@@ -27,7 +27,6 @@ use super::ShortLong;
 use crate::{
     Flag, Item, Nest, VKind, Visited,
     console_writer::{MAX_TAB, Style, Styled, char_width},
-    traits::Gr,
     visitors::{VisitGroup, Visitor, usage::Usage},
 };
 
@@ -387,14 +386,13 @@ impl<'a> Visitor<'a> for Help<'a> {
                     self.current.clear();
                 }
             }
-            Item::Rendered { text, gr } => {
+            Item::Rendered { text } => {
                 for line in text.lines() {
                     if let Some((key, _)) = line.split_once('\t') {
                         self.track_tab(crate::miniansi::text_len(key));
                     }
                 }
 
-                let place = gr.map_or(place, |gr| gr.into());
                 self[place].push_str(text);
                 self[place].push('\n');
             }
@@ -415,16 +413,6 @@ impl<'a> Visitor<'a> for Help<'a> {
 
     fn identify(&self) -> VKind {
         VKind::Help
-    }
-}
-
-impl From<Gr> for Place {
-    fn from(value: Gr) -> Self {
-        match value {
-            Gr::Named => Self::Named,
-            Gr::Pos => Self::Pos,
-            Gr::Cmd => Self::Command,
-        }
     }
 }
 
@@ -455,9 +443,7 @@ impl Help<'_> {
             Item::Flag { .. } | Item::Arg { .. } => Place::Named,
             Item::Positional { .. } => Place::Pos,
             Item::Command { .. } => Place::Command,
-            Item::Rendered {
-                gr: Some(place), ..
-            } => Place::from(*place),
+            Item::Rendered { .. } => self.place,
             Item::Nested {
                 outer: Nest::Named(_),
                 ..
@@ -550,21 +536,4 @@ impl Help<'_> {
             self.output.push_str(footer);
         }
     }
-}
-
-#[test]
-fn flag_equivalence() {
-    use crate::*;
-    let parser = short('a').switch().help("help");
-    let mut h1 = Help::default();
-
-    parser.visit(&mut h1);
-
-    let mut h2 = Help::default();
-    let t = format!("    {L}-a{T}\thelp");
-    h2.item(Item::Rendered {
-        text: &t,
-        gr: Some(Gr::Named),
-    });
-    assert_eq!(h1, h2);
 }

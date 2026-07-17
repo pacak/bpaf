@@ -375,16 +375,8 @@ pub enum Item<'a, 't> {
     },
     /// Already rendered fragment to be used by Usage and Help visitors and ignored by all others
     Rendered {
-        gr: Option<Gr>,
         text: &'t str,
     },
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum Gr {
-    Named,
-    Pos,
-    Cmd,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]

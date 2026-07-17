@@ -259,7 +259,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 inner.vi(self);
                 return;
             }
-            Item::Rendered { text, gr: _ } => Put::Text {
+            Item::Rendered { text } => Put::Text {
                 text: Cow::Owned(text.to_owned()),
             },
         };
