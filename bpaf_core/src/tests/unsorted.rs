@@ -370,7 +370,7 @@ fn pure_pair() {
 
 #[test]
 fn sneaky_command() {
-    #[derive(Debug, Eq, PartialEq)]
+    #[derive(Debug, Eq, PartialEq, Clone)]
     enum Cmd {
         A(bool),
         B(bool),
@@ -592,4 +592,141 @@ fn id_gap_from_immediate_parsers() {
     let parser = inner.command("cmd").to_options();
     let r = parser.run_inner("cmd").unwrap_err().unwrap_stderr();
     assert_eq!(r, "bad\n");
+}
+
+#[test]
+fn exit_from_inner_parser_help() {
+    let ia = short('a').switch();
+    let ib = short('b').switch();
+    let e = short('e').switch().then_exit(Exit::current_parser);
+    let nest = short('i').nest((ia, ib, e)).optional();
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let parser = (nest, a, b).to_options();
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app [-i {[-a] [-b] [-e]}] [-a] [-b]
+
+Available options:
+    -i [-a] [-b] [-e]
+    -a
+    -b
+    -e
+    -a
+    -b
+    -h, --help         Prints help information
+";
+    assert_eq!(help, expected);
+}
+
+#[test]
+fn exit_from_inner_parser() {
+    let ia = short('a').switch();
+    let ib = short('b').switch();
+    let e = short('e').switch().then_exit(Exit::current_parser);
+    let nest = short('i').nest((ia, ib, e)).optional();
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let parser = (nest, a, b).to_options();
+
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, (None, true, false));
+
+    let r = parser.run_inner("-i -a -e -b").unwrap();
+    assert_eq!(r, (Some((true, false, true)), false, true));
+}
+
+#[test]
+fn exit_from_inner_parser_also_help() {
+    let ia = short('a').switch();
+    let ib = short('b').switch();
+    let e = short('e').flag((), ()).then_exit(Exit::current_parser);
+    let nest = short('i').nest((ia, ib).and_also(e)).optional();
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let parser = (nest, a, b).to_options();
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app [-i {[-a] [-b] [-e]}] [-a] [-b]
+
+Available options:
+    -i [-a] [-b] [-e]
+    -a
+    -b
+    -e
+    -a
+    -b
+    -h, --help         Prints help information
+";
+    assert_eq!(help, expected);
+}
+
+#[test]
+fn exit_from_inner_parser_also() {
+    let ia = short('a').switch();
+    let ib = short('b').switch();
+    let e = short('e').flag((), ()).then_exit(Exit::current_parser);
+    let nest = short('i').nest((ia, ib).and_also(e)).optional();
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let parser = (nest, a, b).to_options();
+
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, (None, true, false));
+
+    let r = parser.run_inner("-i -a -e -b").unwrap();
+    assert_eq!(r, (Some((true, false)), false, true));
+}
+
+#[test]
+fn exit_from_command_subparser_help() {
+    let ia = short('a').switch();
+    let ib = short('b').switch();
+    let e = short('e').switch().then_exit(Exit::current_parser);
+    let cmd = (ia, ib, e).to_options().command("cmd");
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let parser = (cmd, a, b).to_options();
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app COMMAND ... [-a] [-b]
+
+Available options:
+    -a
+    -b
+    -h, --help  Prints help information
+
+Available commands:
+    cmd
+";
+    assert_eq!(help, expected);
+
+    let help = parser.run_inner("cmd --help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app cmd [-a] [-b] [-e]
+
+Available options:
+    -a
+    -b
+    -e
+    -h, --help  Prints help information
+";
+    assert_eq!(help, expected);
+}
+
+#[test]
+fn exit_from_command_subparser() {
+    let ia = short('a').switch();
+    let ib = short('b').switch();
+    let e = short('e').switch().then_exit(Exit::current_parser);
+    let cmd = (ia, ib, e).to_options().command("cmd");
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let parser = (cmd, a, b).to_options();
+
+    let r = parser.run_inner("cmd -a -b").unwrap();
+    assert_eq!(r, ((true, true, false), false, false));
+
+    let r = parser.run_inner("cmd -a -e -b -a").unwrap();
+    assert_eq!(r, ((true, false, true), true, true));
 }

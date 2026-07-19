@@ -299,6 +299,16 @@ pub trait Parser {
         }
     }
 
+    fn and_also(self, other: impl Parser<Output = ()> + 'static) -> crate::AndAlso<Self>
+    where
+        Self: Sized + 'static,
+    {
+        crate::AndAlso {
+            inner: self,
+            also: vec![other.into_box()],
+        }
+    }
+
     /// Override help description when used shell completion
     ///
     /// Full help message might be too verbose for use in shell completion,

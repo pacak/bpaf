@@ -81,6 +81,9 @@ pub(crate) struct SharedCtx<'p> {
     pub(crate) parsers: RefCell<Vec<&'p dyn Visited>>,
 
     pub(crate) vault: RefCell<crate::vault::Storage>,
+
+    /// When set - current parser will exit without trying to consume any more items
+    pub(crate) stop: Cell<bool>,
 }
 
 /// State shared between all the parsers, used via [`Ctx`] alias

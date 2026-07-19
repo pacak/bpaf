@@ -622,7 +622,7 @@ impl<T: 'static, P: Parser> Parser for ThenExit<T, P> {
     type Output = T;
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
         match self.inner.eval(ctx.clone()).await {
-            Ok(o) => Err((self.exit)(o).to_error()),
+            Ok(o) => (self.exit)(o).run_inner(ctx),
             Err(e) => Err(e),
         }
     }
@@ -641,7 +641,20 @@ impl<P: Parser> Parser for OrExit<P> {
     type Output = P::Output;
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
         match self.inner.eval(ctx.clone()).await {
-            Err(e) => Err((self.exit)(ParseFailure::from(e)).to_error()),
+            Err(e) => match (self.exit)(ParseFailure::from(e)).0 {
+                crate::InnerExit::Whole { code, msg } => {
+                    let msg = msg.clone();
+                    Err(Error::Final(if code == 0 {
+                        ParseFailure::Stdout(msg)
+                    } else {
+                        ParseFailure::Stderr(msg)
+                    }))
+                }
+                crate::InnerExit::Current { value } => {
+                    ctx.shared.stop.set(true);
+                    Ok(value)
+                }
+            },
             ok => ok,
         }
     }

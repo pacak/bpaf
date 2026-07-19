@@ -22,6 +22,7 @@ mod tasks;
 mod traits;
 mod utils;
 mod vault;
+
 mod visitors;
 
 pub mod api {
@@ -941,6 +942,10 @@ impl<'p> Executor<'p> {
 
         // We'll stop once there's no more data or no more candidates to run
         loop {
+            if self.ctx.shared.stop.take() {
+                break;
+            }
+
             // If we want to track progress by having pending parsers - we need to
             // also avoid loops where the same parser gets spawned and consumes nothing.
             // Currently all the repeated parsers makes sure to handle this, but this
@@ -1420,6 +1425,7 @@ impl<'p> RawCtx<'p> {
             conflicts: RefCell::new(Vec::new()),
             parsers: RefCell::new(Vec::new()),
             vault: RefCell::new(vault::Storage::default()),
+            stop: Cell::new(false),
         });
         Self::make(args.app.clone(), shared, false, visited)
     }
@@ -1461,6 +1467,11 @@ impl<'p> RawCtx<'p> {
             if info.is_none() {
                 return r;
             };
+
+            // kill_in_scope during the main executor may have set `stop` via
+            // Exit::current_parser side effects (e.g. when a ThenExit switch is
+            // killed). Clear it so the help/version fallback can run.
+            self.shared.stop.set(false);
 
             let ctx = self.fork(None, self.visited);
             let (handle, act) = ctx.make_raw_task(ctx.shared.help);
@@ -1649,37 +1660,50 @@ impl std::fmt::Display for Lit<'_> {
 /// Created with [`fail`] or [`success`], useful for custom error messages or things
 /// like custom `--version` flags, designed to be used with [`Parser::or_exit`] and
 /// [`Parser::then_exit`]
-pub struct Exit<T> {
-    ctx: PhantomData<T>,
-    code: i32,
-    msg: Styled,
+pub struct Exit<T>(InnerExit<T>);
+
+enum InnerExit<T> {
+    Whole { code: i32, msg: Styled },
+    Current { value: T },
 }
-impl<T> Exit<T> {
-    fn to_error(&self) -> Error {
-        let msg = self.msg.clone();
-        Error::Final(if self.code == 0 {
-            ParseFailure::Stdout(msg)
-        } else {
-            ParseFailure::Stderr(msg)
+
+impl<T: 'static> Exit<T> {
+    pub(crate) fn run_inner(self, ctx: Ctx) -> Result<T, Error> {
+        match self.0 {
+            InnerExit::Whole { code, msg } => {
+                let msg = msg.clone();
+                let failure = if code == 0 {
+                    ParseFailure::Stdout(msg)
+                } else {
+                    ParseFailure::Stderr(msg)
+                };
+                Err(Error::Final(failure))
+            }
+            InnerExit::Current { value } => {
+                ctx.shared.stop.set(true);
+                Ok(value)
+            }
+        }
+    }
+
+    pub fn failure(msg: impl Into<Styled>) -> Exit<T> {
+        Exit(InnerExit::Whole {
+            code: 1,
+            msg: msg.into(),
+        })
+    }
+
+    pub fn success(msg: impl Into<Styled>) -> Exit<T> {
+        Exit(InnerExit::Whole {
+            code: 0,
+            msg: msg.into(),
         })
     }
 }
 
 impl<T> Exit<T> {
-    pub fn failure(msg: impl Into<Styled>) -> Exit<T> {
-        Exit {
-            ctx: PhantomData,
-            code: 1,
-            msg: msg.into(),
-        }
-    }
-
-    pub fn success(msg: impl Into<Styled>) -> Exit<T> {
-        Exit {
-            ctx: PhantomData,
-            code: 0,
-            msg: msg.into(),
-        }
+    pub fn current_parser(value: T) -> Self {
+        Exit(InnerExit::Current { value })
     }
 }
 
@@ -1712,10 +1736,58 @@ impl<T: 'static> Parser for Fail<T> {
     fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
 }
 
+pub struct AndAlso<P> {
+    inner: P,
+    also: Vec<BoxParser<()>>,
+}
+
+impl<P> AndAlso<P> {
+    pub fn and_also(mut self, other: impl Parser<Output = ()> + 'static) -> Self {
+        self.also.push(other.into_box());
+        self
+    }
+}
+
+impl<P: Parser> Parser for AndAlso<P> {
+    type Output = P::Output;
+
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
+        let inner = ctx.spawn(crate::Kind::Prod, &self.inner);
+        let also: Vec<_> = self
+            .also
+            .iter()
+            .map(|p| ctx.spawn(crate::Kind::Prod, p))
+            .collect();
+
+        ctx.wait_for_children().await;
+
+        let mut err = None;
+        let inner = inner.take().map_err(|e| e.append_to(&mut err));
+        for h in also {
+            // values are `()` so we care only about errors.
+            if let Err(e) = h.take() {
+                e.append_to(&mut err);
+            }
+        }
+
+        err.map_or(inner, Err)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        visitor.push_group(VisitGroup::Prod);
+        self.inner.visit(visitor);
+        for p in &self.also {
+            p.visit(visitor);
+        }
+        visitor.pop_group();
+    }
+}
+
 pub struct Cargo<P> {
     name: &'static str,
     inner: P,
 }
+
 pub fn cargo_helper<P>(name: &'static str, inner: P) -> Cargo<P> {
     Cargo { name, inner }
 }
