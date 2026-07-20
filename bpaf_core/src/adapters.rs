@@ -141,7 +141,7 @@ impl<T: 'static> OptionParser<T> {
             Some(custom) => custom,
             None => &Custom::default(),
         };
-        let help_and_version = custom.create().into_box();
+        let help_and_version = custom.create().then_exit(Exit::current_parser).into_box();
 
         let mut args = args.into();
         args.check_complete()?;

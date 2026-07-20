@@ -82,6 +82,8 @@ fn completion_test_1() {
 --smart-add\tSmartly add a file
 --doctor\tPerform environment sanity check
 --upgrade\tPerform self update
+--version\tPrints version information
+--help\tPrints help information
 ";
     assert_eq!(r, expected);
 
@@ -92,6 +94,8 @@ fn completion_test_1() {
 --smart-add\tSmartly add a file
 --doctor\tPerform environment sanity check
 --upgrade\tPerform self update
+--version\tPrints version information
+--help\tPrints help information
 ";
     assert_eq!(r, expected);
 
@@ -135,8 +139,8 @@ Available positional items:
 
 Available options:
         --doctor   Perform environment sanity check
-    -h, --help     Prints help information
     -V, --version  Prints version information
+    -h, --help     Prints help information
 ";
     assert_eq!(r, expected);
 
@@ -144,12 +148,14 @@ Available options:
     let expected = "\
 \"-\"\tprefix: None, suffix: None
 --doctor\tPerform environment sanity check
+--version\tPrints version information
+--help\tPrints help information
 ";
     assert_eq!(r, expected);
 
     // "-" is a valid filename, so Option::Process succeeds, Doctor is killed. No input
     let r = parser.run_inner(("-", "")).unwrap_err().unwrap_stdout();
-    let expected = "";
+    let expected = "--help\tPrints help information\n";
     assert_eq!(r, expected);
 
     // --doctor doesn't fit, but "hello" is a valid filename prefix
@@ -183,6 +189,8 @@ fn completion_test_3() {
 \"--\"\tprefix: None, suffix: None
 --doctor\tPerform environment sanity check
 --document\tPrint docs
+--version\tPrints version information
+--help\tPrints help information
 ";
     assert_eq!(r, expected);
 

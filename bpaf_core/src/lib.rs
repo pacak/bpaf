@@ -22,7 +22,6 @@ mod tasks;
 mod traits;
 mod utils;
 mod vault;
-
 mod visitors;
 
 pub mod api {
@@ -1456,49 +1455,32 @@ impl<'p> RawCtx<'p> {
         info: Option<&Info>,
         scope_start: u32,
     ) -> Result<(), Error> {
-        self.shared.parsers.borrow_mut().push(self.visited);
-        let r = Executor::new(self.clone(), Id(scope_start), info.is_some()).execute();
-        self.shared.parsers.borrow_mut().pop();
-
-        if matches!(r, Err(Error::Problem(_, Problem::Unconsumed { .. }))) {
-            if lazy {
-                return Ok(());
-            }
-            if info.is_none() {
-                return r;
+        let mut hh = None;
+        if info.is_some() {
+            let (h, act) = self.make_raw_task(self.shared.help);
+            hh = Some(h);
+            let task = Task {
+                act,
+                info: self.make_child_info(Kind::Prod),
             };
 
-            // kill_in_scope during the main executor may have set `stop` via
-            // Exit::current_parser side effects (e.g. when a ThenExit switch is
-            // killed). Clear it so the help/version fallback can run.
-            self.shared.stop.set(false);
+            self.add_task(task);
+        }
+        self.shared.parsers.borrow_mut().push(self.visited);
+        let mut r = Executor::new(self.clone(), Id(scope_start), info.is_some()).execute();
+        self.shared.parsers.borrow_mut().pop();
 
-            let ctx = self.fork(None, self.visited);
-            let (handle, act) = ctx.make_raw_task(ctx.shared.help);
-
-            let alt_scope_start = ctx.shared.next_free.get();
-            // See `OptionParser::run_in_ctx` for why we reset `current_task`
-            // around the inner executor.
-            let saved_current = ctx.shared.current_task.replace(TaskInfo::default());
-            let info = ctx.make_child_info(Kind::Prod);
-            let task = Task { act, info };
-            ctx.add_task(task);
-            assert!(ctx.shared.pending_ops.borrow().is_empty());
-            let exec_res = Executor::new(ctx.clone(), Id(alt_scope_start), false).execute();
-            assert!(ctx.shared.pending_ops.borrow().is_empty());
-            ctx.shared.current_task.replace(saved_current);
-            if exec_res.is_ok() {
-                match handle.take() {
-                    Ok(xtra) => {
-                        return Err(Error::Final(match xtra {
-                            Extra::Help => ctx.render_help(false),
-                            Extra::LongHelp => ctx.render_help(true),
-                        }));
-                    }
-                    Err(e @ Error::Final(_)) => return Err(e),
-                    _ => {}
-                }
+        if let Some(h) = hh {
+            r = match h.take() {
+                Ok(Extra::Help) => Err(Error::Final(self.render_help(false))),
+                Ok(Extra::LongHelp) => Err(Error::Final(self.render_help(true))),
+                Err(Error::Silent(_) | Error::Problem(_, _) | Error::Missing(_)) => r,
+                Err(e @ (Error::Final(_) | Error::CompReply(_) | Error::CompValue(_))) => Err(e),
             }
+        };
+
+        if lazy && matches!(r, Err(Error::Problem(_, Problem::Unconsumed { .. }))) {
+            r = Ok(());
         }
         r
     }

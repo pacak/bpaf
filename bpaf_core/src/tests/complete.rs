@@ -14,6 +14,7 @@ fn prefer_long_name() {
 --beta\tbeta
 -c\tcat
 --delta\tdelta
+--help\tPrints help information
 ";
     assert_eq!(r, expected);
 }
@@ -27,7 +28,10 @@ fn comp_help_overrides_long_help() {
         .to_options();
 
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--verbose\tverbose mode\n");
+    assert_eq!(
+        r,
+        "--verbose\tverbose mode\n--help\tPrints help information\n"
+    );
 }
 
 #[test]
@@ -66,7 +70,10 @@ fn comp_help_with_flag() {
         .to_options();
 
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--verbose\tverbose mode\n");
+    assert_eq!(
+        r,
+        "--verbose\tverbose mode\n--help\tPrints help information\n"
+    );
 }
 
 #[test]
@@ -108,7 +115,7 @@ fn name_should_be_included() {
     let parser = a.to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--aaa\tAaaaa!!!\n");
+    assert_eq!(r, "--aaa\tAaaaa!!!\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "-a")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "-a\tAaaaa!!!\n");
@@ -134,7 +141,8 @@ fn simple_complete_command() {
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
     let expected = "alpha\n\
                     -b\n\
-                    -c\n";
+                    -c\n\
+                    --help\tPrints help information\n";
 
     assert_eq!(r, expected);
 
@@ -143,15 +151,15 @@ fn simple_complete_command() {
     assert_eq!(r, expected);
 
     let r = parser.run_inner(("-b -c", "")).unwrap_err().unwrap_stdout();
-    let expected = "";
+    let expected = "--help\tPrints help information\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner(("alpha", "")).unwrap_err().unwrap_stdout();
-    let expected = "-a\n";
+    let expected = "-a\n--help\tPrints help information\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner(("-b", "")).unwrap_err().unwrap_stdout();
-    let expected = "-c\n";
+    let expected = "-c\n--help\tPrints help information\n";
     assert_eq!(r, expected);
 }
 
@@ -162,7 +170,10 @@ fn simple_long_argument() {
         .argument::<String>("NAME");
     let parser = name.to_options();
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--name\tA custom name\n");
+    assert_eq!(
+        r,
+        "--name\tA custom name\n--help\tPrints help information\n"
+    );
 }
 
 #[test]
@@ -184,13 +195,15 @@ fn simple_complete_named() {
     let expected = "--missy\tMissy - short for missle launcher\n\
                     --missle-launcher\tA full name - Missle Launcher\n\
                     -m\tA short flag\n\
-                    --name\tA custom name\n";
+                    --name\tA custom name\n\
+                    --help\tPrints help information\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
     let expected = "--missy\tMissy - short for missle launcher\n\
                     --missle-launcher\tA full name - Missle Launcher\n\
-                    --name\tA custom name\n";
+                    --name\tA custom name\n\
+                    --help\tPrints help information\n";
     assert_eq!(r, expected);
 
     let r = parser
@@ -212,7 +225,8 @@ fn simple_complete_named() {
     let expected = "--missy\tMissy - short for missle launcher\n\
                     --missle-launcher\tA full name - Missle Launcher\n\
                     -m\tA short flag\n\
-                    --name\tA custom name\n";
+                    --name\tA custom name\n\
+                    --help\tPrints help information\n";
     assert_eq!(r, expected);
 }
 
@@ -258,7 +272,8 @@ fn strict_pos_works() {
 
     let expected = "-a\tshort help\n\
                     X\tpos help\n\
-                    ket\tket descr\n";
+                    ket\tket descr\n\
+                    --help\tPrints help information\n";
     //    let expected = "-a (Some(\"short help\"))\n\"\" (Some(\"X\"))\nket (Some(\"ket descr\"))\n";
     assert_eq!(r, expected);
 
@@ -539,7 +554,7 @@ fn completer_static_str_slice_positional() {
     let parser = construct!(p).to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "alice\nbob\ncarol\n");
+    assert_eq!(r, "alice\nbob\ncarol\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "b")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "bob\n");
@@ -556,7 +571,7 @@ fn global_flag_completion() {
 
     // Global flag should appear when completing '-'
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--glob\tGlobal flag\n");
+    assert_eq!(r, "--glob\tGlobal flag\n--help\tPrints help information\n");
 
     // Global flag should appear when completing '--g'
     let r = parser.run_inner(("", "--g")).unwrap_err().unwrap_stdout();
@@ -568,7 +583,7 @@ fn global_flag_completion() {
 
     // Global flag should appear with empty prefix
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--glob\tGlobal flag\n");
+    assert_eq!(r, "--glob\tGlobal flag\n--help\tPrints help information\n");
 }
 
 #[test]
@@ -582,7 +597,10 @@ fn global_argument_completion() {
 
     // Global argument should appear when completing '-'
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--arg\tGlobal argument\n");
+    assert_eq!(
+        r,
+        "--arg\tGlobal argument\n--help\tPrints help information\n"
+    );
 
     // Global argument should appear when completing '--a'
     let r = parser.run_inner(("", "--a")).unwrap_err().unwrap_stdout();
@@ -600,7 +618,7 @@ fn global_positional_completion() {
 
     // Global positional should show its metavar with empty prefix
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "NAME\tA name\n");
+    assert_eq!(r, "NAME\tA name\n--help\tPrints help information\n");
 
     // Global positional should show the typed value without its help
     let r = parser.run_inner(("", "al")).unwrap_err().unwrap_stdout();
@@ -616,7 +634,8 @@ fn global_alongside_local_completion() {
     // Both global and local parsers should appear when completing '-'
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
     let expected = "--glob\tGlobal flag\n\
-                    --loc\tLocal flag\n";
+                    --loc\tLocal flag\n\
+                    --help\tPrints help information\n";
     assert_eq!(r, expected);
 
     // Only local should match '--l'
@@ -642,11 +661,11 @@ fn global_flag_in_command_completion() {
 
     // Global flag should appear at top level
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--glob\tGlobal flag\n");
+    assert_eq!(r, "--glob\tGlobal flag\n--help\tPrints help information\n");
 
     // Global flag should also appear inside a command scope
     let r = parser.run_inner(("cmd", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--glob\tGlobal flag\n");
+    assert_eq!(r, "--help\tPrints help information\n");
 }
 
 #[test]
@@ -658,7 +677,7 @@ fn global_flag_in_command_with_local_completion() {
 
     // At top level: only global should appear (local is inside command)
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    let expected = "--glob\tGlobal flag\n";
+    let expected = "--glob\tGlobal flag\n--help\tPrints help information\n";
     assert_eq!(r, expected);
 
     let r = parser
@@ -694,7 +713,8 @@ fn mixing_shell_and_positional_1_flag_or_pos() {
         .unwrap_err()
         .unwrap_stdout();
 
-    let expected = "-b\tOption b\n\"\"\tprefix: None, suffix: None\n";
+    let expected = "-b\tOption b\n\"\"\tprefix: None, suffix: None\n\
+                    --help\tPrints help information\n";
     assert_eq!(r, expected);
 }
 
@@ -709,7 +729,8 @@ fn mixing_shell_and_positional_2_arg_or_pos() {
         .unwrap_err()
         .unwrap_stdout();
 
-    let expected = "-b\tOption b\n\"\"\tprefix: None, suffix: None\n";
+    let expected = "-b\tOption b\n\"\"\tprefix: None, suffix: None\n\
+                    --help\tPrints help information\n";
     assert_eq!(r, expected);
 }
 
@@ -723,7 +744,8 @@ fn mixing_shell_and_positional_3_flag_and_pos() {
         .run_inner(("", ""))
         .unwrap_err()
         .unwrap_stdout();
-    let expected = "-b\tOption b\n\"\"\tprefix: None, suffix: None\n";
+    let expected = "-b\tOption b\n\"\"\tprefix: None, suffix: None\n\
+                    --help\tPrints help information\n";
     assert_eq!(r, expected);
 }
 #[test]
@@ -736,7 +758,8 @@ fn mixing_shell_and_positional_4_arg_and_pos() {
         .run_inner(("", ""))
         .unwrap_err()
         .unwrap_stdout();
-    let expected = "-b\tOption b\n\"\"\tprefix: None, suffix: None\n";
+    let expected = "-b\tOption b\n\"\"\tprefix: None, suffix: None\n\
+                    --help\tPrints help information\n";
     assert_eq!(r, expected);
 }
 
@@ -757,6 +780,7 @@ fn static_complete_test_1() {
 --banana\tUse banana
 --bananananana\tI'm Batman
 --calculator\tcalculator expression
+--help\tPrints help information
 ";
     assert_eq!(r, expected);
 
@@ -829,7 +853,7 @@ fn short_command_alias() {
     assert_eq!(r, "cmd_a\n");
 
     let r = parser.run_inner(("b", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--potato\n");
+    assert_eq!(r, "--potato\n--help\tPrints help information\n");
 }
 
 #[test]
@@ -879,7 +903,7 @@ fn static_complete_test_2() {
     );
 
     let r = parser.run_inner(("check", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--potato\n");
+    assert_eq!(r, "--potato\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "check")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "check\tcheck packages\n");
@@ -896,6 +920,7 @@ fn static_complete_test_2() {
 clean\tclean target dir
 build\tbuild project
 contemplate
+--help\tPrints help information
 ";
     assert_eq!(r, expected);
 
@@ -918,7 +943,8 @@ fn static_complete_test_3() {
         "\
 --potato\tpo
 --banana\tba
---durian\n"
+--durian
+--help\tPrints help information\n"
     );
 
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
@@ -928,7 +954,8 @@ fn static_complete_test_3() {
         "\
 --potato\tpo
 --banana\tba
---durian\n"
+--durian
+--help\tPrints help information\n"
     );
 
     let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
@@ -937,7 +964,8 @@ fn static_complete_test_3() {
         "\
 --potato\tpo
 --banana\tba
---durian\n"
+--durian
+--help\tPrints help information\n"
     );
 
     let r = parser.run_inner(("", "--d")).unwrap_err().unwrap_stdout();
@@ -957,13 +985,13 @@ fn static_complete_test_4() {
     assert_eq!(r, "-a\n");
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n-b\n");
+    assert_eq!(r, "-a\n-b\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n-b\n");
+    assert_eq!(r, "-a\n-b\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "");
+    assert_eq!(r, "--help\tPrints help information\n");
 }
 
 #[test]
@@ -977,7 +1005,7 @@ fn static_complete_test_5() {
     let parser = construct!(ab, cd).to_options();
 
     let r = parser.run_inner(("-a x", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-b\n-c\n-d\n");
+    assert_eq!(r, "-b\n-c\n-d\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "A\n");
@@ -986,13 +1014,13 @@ fn static_complete_test_5() {
     assert_eq!(r, "-a\n");
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n-b\n-c\n-d\n");
+    assert_eq!(r, "-a\n-b\n-c\n-d\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n-b\n-c\n-d\n");
+    assert_eq!(r, "-a\n-b\n-c\n-d\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "");
+    assert_eq!(r, "--help\tPrints help information\n");
 }
 
 #[test]
@@ -1002,16 +1030,16 @@ fn static_complete_test_6() {
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner(("-b x", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n-b\n");
+    assert_eq!(r, "-a\n-b\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "A\n");
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n-b\n");
+    assert_eq!(r, "-a\n-b\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("-a x", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-b\n");
+    assert_eq!(r, "-b\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "-a")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "-a\n");
@@ -1027,10 +1055,13 @@ fn static_complete_test_7() {
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\tswitch\nFILE\tFile to use\n");
+    assert_eq!(
+        r,
+        "-a\tswitch\nFILE\tFile to use\n--help\tPrints help information\n"
+    );
 
     let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "FILE\tFile to use\n");
+    assert_eq!(r, "FILE\tFile to use\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("-a", "x")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "x\n");
@@ -1046,10 +1077,10 @@ fn static_complete_test_8() {
         .to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "nom\n");
+    assert_eq!(r, "nom\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("nom", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--durian\n");
+    assert_eq!(r, "--durian\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("nom", "-a")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "-a\n");
@@ -1058,7 +1089,7 @@ fn static_complete_test_8() {
         .run_inner(("nom -a", ""))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "");
+    assert_eq!(r, "--help\tPrints help information\n");
 }
 
 #[test]
@@ -1068,7 +1099,7 @@ fn just_positional() {
         .to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "FILE\tFile to use\n");
+    assert_eq!(r, "FILE\tFile to use\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "xxx")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "xxx\n");
@@ -1112,7 +1143,7 @@ fn dynamic_complete_test_1() {
     assert_eq!(r, "beta\n");
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n");
+    assert_eq!(r, "-a\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "alpha\nbeta\nbanana\ncat\ndurian\n");
@@ -1174,7 +1205,7 @@ fn static_with_hide() {
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n-b\n");
+    assert_eq!(r, "-a\n-b\n--help\tPrints help information\n");
 }
 
 #[test]
@@ -1184,7 +1215,7 @@ fn static_with_fallback_and_hide() {
     let parser = construct!(a, b).fallback((false, false)).to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n-b\n");
+    assert_eq!(r, "-a\n-b\n--help\tPrints help information\n");
 }
 
 #[test]
@@ -1208,7 +1239,8 @@ fn csample_mystery() {
 --avocado\tUse avocado
 --banana\tUse banana
 --bananananana\tI'm Batman
---calculator\tcalculator expression\n"
+--calculator\tcalculator expression
+--help\tPrints help information\n"
     );
 }
 
@@ -1221,13 +1253,13 @@ fn only_positionals_after_double_dash() {
     let parser = construct!(a, b, c, d).to_options();
 
     let r = parser.run_inner(("-a", "--")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--\n");
+    assert_eq!(r, "--\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "-a")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "-a\n");
 
     let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-b\n-c\nD\n");
+    assert_eq!(r, "-b\n-c\nD\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("--", "")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "D\n");
@@ -1254,7 +1286,7 @@ fn only_positionals_after_positionals() {
     let parser = construct!(a, d).to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\nD\n");
+    assert_eq!(r, "-a\nD\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "xxx")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "xxx\n");
@@ -1267,7 +1299,7 @@ fn only_positionals_after_positionals() {
 
     // this is fine, there's .many
     let r = parser.run_inner(("xxx", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\nD\n");
+    assert_eq!(r, "-a\nD\n--help\tPrints help information\n");
 }
 
 fn complete_alpha(input: &str) -> Vec<(String, Option<String>)> {
@@ -1287,7 +1319,10 @@ fn positionals_complete_in_order() {
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "alpha\talpha description\n");
+    assert_eq!(
+        r,
+        "alpha\talpha description\n--help\tPrints help information\n"
+    );
 
     let r = parser.run_inner(("", "a")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "alpha\talpha description\n");
@@ -1296,7 +1331,10 @@ fn positionals_complete_in_order() {
     assert_eq!(r, "");
 
     let r = parser.run_inner(("xxx", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "beta\tbeta description\n");
+    assert_eq!(
+        r,
+        "beta\tbeta description\n--help\tPrints help information\n"
+    );
 
     let r = parser.run_inner(("xxx", "b")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "beta\tbeta description\n");
@@ -1315,7 +1353,10 @@ fn should_be_able_to_suggest_positional_along_with_non_positionals_flags() {
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\nbeta\tbeta description\n");
+    assert_eq!(
+        r,
+        "-a\nbeta\tbeta description\n--help\tPrints help information\n"
+    );
 }
 
 #[test]
@@ -1331,7 +1372,7 @@ fn should_be_able_to_suggest_double_dash() {
     let parser = construct!(a).to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--arg\n");
+    assert_eq!(r, "--arg\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("--arg", "")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "--\n");
@@ -1363,13 +1404,13 @@ fn suggest_double_dash_automatically_for_strictly_positional_simple() {
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
 
-    assert_eq!(r, "--\n");
+    assert_eq!(r, "--\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "");
+    assert_eq!(r, "--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "");
+    assert_eq!(r, "--help\tPrints help information\n");
 
     let r = parser.run_inner(("--", "")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "B\n");
@@ -1383,14 +1424,14 @@ fn suggest_double_dash_automatically_for_strictly_positional() {
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
 
-    assert_eq!(r, "-a\n--\n");
+    assert_eq!(r, "-a\n--\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
 
-    assert_eq!(r, "-a\n");
+    assert_eq!(r, "-a\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "");
+    assert_eq!(r, "--help\tPrints help information\n");
 
     let r = parser.run_inner(("--", "")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "B\n");
@@ -1406,11 +1447,11 @@ fn stacked_flags() {
 
     // with no input the right behavior is to suggest all the switches
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n-b\n-c\n");
+    assert_eq!(r, "-a\n-b\n-c\n--help\tPrints help information\n");
 
     // with a single item present separately we should suggest the remaining two
     let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-b\n-c\n");
+    assert_eq!(r, "-b\n-c\n--help\tPrints help information\n");
 
     // trying to complete a pair of flags should dump current state
     let r = parser.run_inner(("", "-ab")).unwrap_err().unwrap_stdout();
@@ -1418,7 +1459,7 @@ fn stacked_flags() {
 
     // with a single valid item we should suggest it
     let r = parser.run_inner(("-ab", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-c\n");
+    assert_eq!(r, "-c\n--help\tPrints help information\n");
 
     // -z is not a valid flag so completion fails
     let r = parser.run_inner(("", "-abz")).unwrap_err().unwrap_stdout();
@@ -1488,7 +1529,10 @@ fn zsh_style_completion_visible() {
     let parser = construct!(a, b).group_help("items").to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--argument\tthis is an argument\n-b\n");
+    assert_eq!(
+        r,
+        "--argument\tthis is an argument\n-b\n--help\tPrints help information\n"
+    );
 }
 
 #[test]
@@ -1496,7 +1540,7 @@ fn zsh_many_positionals() {
     let parser = positional::<String>("POS").many().to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "POS\n");
+    assert_eq!(r, "POS\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "p")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "p\n");
@@ -1510,7 +1554,10 @@ fn zsh_help_single_line_only() {
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
 
-    assert_eq!(r, "-a\thello world\n-b\thello from switch\n");
+    assert_eq!(
+        r,
+        "-a\thello world\n-b\thello from switch\n--help\tPrints help information\n"
+    );
 }
 
 #[test]
@@ -1520,7 +1567,10 @@ fn shell_help_single_line_only() {
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\thello 1\n-b\thello 2\n");
+    assert_eq!(
+        r,
+        "-a\thello 1\n-b\thello 2\n--help\tPrints help information\n"
+    );
 }
 
 #[test]
@@ -1537,10 +1587,10 @@ fn zsh_complete_info() {
         .to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n");
+    assert_eq!(r, "-a\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n");
+    assert_eq!(r, "-a\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "hello\tword\nsample\n");
@@ -1577,10 +1627,10 @@ fn double_dash_as_positional() {
     assert_eq!(r, "alpha\n");
 
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "");
+    assert_eq!(r, "--help\tPrints help information\n");
     //
     let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "");
+    assert_eq!(r, "--help\tPrints help information\n");
 
     let r = parser.run_inner(("", "x")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "");
@@ -1595,7 +1645,7 @@ fn strict_positional_completion() {
     let parser = construct!(a, p).to_options();
 
     let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "--arg\n");
+    assert_eq!(r, "--arg\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("--a", "")).unwrap_err().unwrap_stderr();
     assert_eq!(r, "no such flag: '--a', did you mean '--arg'?\n");
@@ -1612,7 +1662,7 @@ fn avoid_inserting_metavars() {
     let parser = short('a').argument::<String>("A").to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\n");
+    assert_eq!(r, "-a\n--help\tPrints help information\n");
 
     let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "A\n");
@@ -1639,14 +1689,14 @@ fn generate_unparseable_items() {
 
     // passing -e restricts branch with cmd_two
     let r = parser.run_inner(("-e", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "cone\n");
+    assert_eq!(r, "cone\n--help\tPrints help information\n");
 
     // passing -e restricts branch with cmd_two
     let r = parser.run_inner(("-e", "c")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "cone\n");
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-e\ncone\nctwo\n");
+    assert_eq!(r, "-e\ncone\nctwo\n--help\tPrints help information\n");
 }
 
 #[test]
@@ -1682,7 +1732,10 @@ fn mix_of_options_and_positional_completions() {
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
 
-    assert_eq!(r, "--arg\tAlhpa argument\nbeta\tbeta description\n");
+    assert_eq!(
+        r,
+        "--arg\tAlhpa argument\nbeta\tbeta description\n--help\tPrints help information\n"
+    );
 }
 
 #[test]
@@ -1697,5 +1750,8 @@ fn positionals_with_no_completions_are_not_duplicated() {
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
 
-    assert_eq!(r, "--arg\tAlhpa argument\nBETA\tBeta argument\n");
+    assert_eq!(
+        r,
+        "--arg\tAlhpa argument\nBETA\tBeta argument\n--help\tPrints help information\n"
+    );
 }
