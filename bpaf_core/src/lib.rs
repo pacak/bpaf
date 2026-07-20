@@ -718,6 +718,9 @@ impl<'p> RawCtx<'p> {
             *self.shared.wakeup_reason.borrow_mut() = prev;
             let mut cur = self.shared.current_task.borrow_mut();
             cur.pending -= 1;
+            // Task finished immediately without spawning children. Reclaim its Id so tasks
+            // can stay a dense vector
+            self.shared.next_free.set(task.info.id.0);
         } else {
             *self.shared.wakeup_reason.borrow_mut() = prev;
             let old = self.shared.tasks.borrow_mut().insert(task.info.id, task);

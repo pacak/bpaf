@@ -581,3 +581,15 @@ fn some_env() {
     let r = parser.run_inner("").unwrap();
     assert_eq!(r, vec!["bpaf_core".to_owned()]);
 }
+
+#[test]
+fn id_gap_from_immediate_parsers() {
+    // Regression: a parser that completes immediately (e.g. fail) inside a
+    // subcommand consumed a next_free ID but was never stored in the tasks
+    // vector. The sub-executor then tried to assert_no_tasks_past_end at a
+    // scope_start beyond the vector's actual length, causing a panic.
+    let inner = fail::<()>("bad").to_options();
+    let parser = inner.command("cmd").to_options();
+    let r = parser.run_inner("cmd").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "bad\n");
+}
