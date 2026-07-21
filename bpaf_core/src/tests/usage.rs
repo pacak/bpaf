@@ -550,6 +550,71 @@ fn nest_usage_preserves_inner_sum() {
     assert_eq!(usage(&parser), expected);
 }
 
+#[test]
+fn or_else_required_visible() {
+    let a = short('a').switch();
+    let b = short('b').req_flag(true);
+    let parser = a.or_else(b).to_options();
+
+    let expected = "[-a | -b]";
+    assert_eq!(usage(&parser), expected);
+}
+
+#[test]
+fn or_else_required_hidden_usage() {
+    let a = short('a').switch();
+    let b = short('b').req_flag(true).hide_usage();
+    let parser = a.or_else(b).to_options();
+
+    let expected = "[-a]";
+    assert_eq!(usage(&parser), expected);
+}
+
+#[test]
+fn or_else_required_hidden_help() {
+    let a = short('a').switch();
+    let b = short('b').req_flag(true).hide();
+    let parser = a.or_else(b).to_options();
+
+    let expected = "[-a]";
+    assert_eq!(usage(&parser), expected);
+}
+
+#[test]
+fn required_or_optional_with_hidden_usage() {
+    let a = short('a').req_flag('a');
+    let c = short('c').flag('c', 'C');
+    let v = short('v').req_flag('v').hide_usage();
+    let p = a.or_else(c).into_box().or_else(v);
+    let parser = p.to_options();
+    let expected = "[-a | -c]";
+    assert_eq!(usage(&parser), expected);
+}
+
+#[test]
+fn optional_sum_in_product() {
+    let a = short('a').req_flag('a');
+    let c = short('c').flag('c', 'C');
+    let inner = a.or_else(c);
+    let b = short('b').req_flag('b');
+    let parser = construct!(inner, b).to_options();
+    let expected = "[-a | -c] -b";
+    assert_eq!(usage(&parser), expected);
+}
+
+#[test]
+fn global_optional_sum_in_sum() {
+    let a = short('a').req_flag('a');
+    let c = short('c').flag('c', 'C');
+    let g = a.or_else(c).global();
+    let d = short('d').req_flag('d');
+    let parser = construct!([g, d]).to_options();
+    let expected = "[-a | -c | -d]";
+    assert_eq!(usage(&parser), expected);
+}
+
+
+
 // #[test]
 // fn many_strict() {
 //     let a = short('a').switch();

@@ -342,6 +342,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 (_, VG::Global) => {
                     // Global is transparent - its children belong to the parent
                     parent.children += child.children - 1;
+                    parent.optional |= child.optional;
                     false
                 }
                 (VG::Global, _) => {
@@ -361,6 +362,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 }
                 (VG::Prod, VG::Prod) | (VG::Sum, VG::Sum) => {
                     parent.children += child.children - 1;
+                    parent.optional |= child.optional;
                     false
                 }
                 // Many keeps everything visible - each layer carries distinct
@@ -399,7 +401,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 (VG::Prod, VG::Optional) => true, // optional item inside product: `[xxx]`
                 // Keep Sum visible for genuine alternation; collapse when command
                 // dedup has left only one alternative - no brackets needed.
-                (VG::Prod, VG::Sum) => child.children > 1,
+                (VG::Prod, VG::Sum) => !child.collapsable_single(),
                 // Sum keeps everything visible except Prod, whose brackets are redundant
                 // inside the sum's alternation.
                 (VG::Sum, VG::Many) => true, // repetition inside alternatives: `(xxx | yyy)...`
@@ -416,7 +418,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
             }
         } else {
             let g = self.events[open].as_group().unwrap();
-            if (g.group == VG::Sum || g.group == VG::Prod) && g.children == 1 {
+            if g.collapsable_single() {
                 self.events.remove(open);
             } else {
                 self.events.push(Event::Pop);
@@ -465,6 +467,17 @@ struct Group {
     visible: bool,
     /// Indicates that the group is optional rather than mandatory. Wraps contents in [xxx]
     optional: bool,
+}
+
+impl Group {
+    /// A Sum/Prod with at most one visible child can be collapsed (its brackets are
+    /// redundant) unless it carries the `optional` flag, in which case the brackets
+    /// are semantically meaningful.
+    fn collapsable_single(&self) -> bool {
+        matches!(self.group, VisitGroup::Sum | VisitGroup::Prod)
+            && self.children == 1
+            && !self.optional
+    }
 }
 
 #[derive(Debug, Clone)]
