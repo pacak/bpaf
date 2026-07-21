@@ -1,8 +1,6 @@
 //! All the customization is done though custom/info
 
-use crate::{
-    OptionParser, Parser, console_writer::Colorscheme, construct, error::Error, traits::RcParser,
-};
+use crate::{OptionParser, Parser, console_writer::Colorscheme, error::Error, traits::RcParser};
 
 #[derive(Default)]
 pub struct Info {
@@ -10,7 +8,6 @@ pub struct Info {
     pub descr: Option<&'static str>,
     pub footer: Option<&'static str>,
     pub usage: Option<&'static str>,
-    pub version: Option<&'static str>,
     pub fallback_to_usage: bool,
     pub(crate) custom: Option<Box<Custom>>,
 }
@@ -40,12 +37,6 @@ impl<T> OptionParser<T> {
         self.custom().colorscheme = Some(colorscheme);
         self
     }
-
-    /// Parser must consume at least one item, use [`Named::req_switch`] or similar
-    pub fn version_parser(mut self, parser: impl Parser<Output = ()> + 'static) -> Self {
-        self.custom().version = Some(parser.into_rc());
-        self
-    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -58,14 +49,12 @@ pub enum Help {
 pub(crate) enum Extra {
     Help,
     LongHelp,
-    Version(&'static str),
 }
 
 #[derive(Default, Clone)]
 pub struct Custom {
     // --help or -h
     pub(crate) help: Option<RcParser<Help>>,
-    pub(crate) version: Option<RcParser<()>>,
     pub(crate) colorscheme: Option<&'static Colorscheme>,
 }
 
@@ -87,49 +76,8 @@ impl Custom {
         })
     }
 
-    fn make_version(&self, version: Option<&'static str>) -> impl Parser<Output = Extra> + 'static {
-        use crate::short;
-        let version = version?;
-        let inner = WithBackup {
-            primary: self.version.clone(),
-            backup: short('V')
-                .long("version")
-                .help("Prints version information")
-                .req_flag(()),
-        }
-        .map(|_| Extra::Version(version));
-        Some(OnlyParser { inner })
-    }
-
-    pub(crate) fn create(
-        &self,
-        version: Option<&'static str>,
-    ) -> impl Parser<Output = Extra> + 'static {
-        let help = self.make_help();
-        let version = self.make_version(version);
-
-        construct!([help, version]).hide_usage()
-    }
-}
-
-struct OnlyParser<P> {
-    inner: P,
-}
-
-impl<P: Parser> Parser for OnlyParser<P> {
-    type Output = P::Output;
-
-    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
-        let r = self.inner.eval(ctx.clone()).await?;
-        if ctx.shared.current_task.borrow().consumed == ctx.shared.args.len() {
-            Ok(r)
-        } else {
-            Err(Error::Silent("Must be the only item"))
-        }
-    }
-
-    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
-        self.inner.visit(visitor)
+    pub(crate) fn create(&self) -> impl Parser<Output = Extra> + 'static {
+        self.make_help().hide_usage()
     }
 }
 

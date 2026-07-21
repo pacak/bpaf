@@ -141,7 +141,7 @@ impl<T: 'static> OptionParser<T> {
             Some(custom) => custom,
             None => &Custom::default(),
         };
-        let help_and_version = custom.create(self.info.version).into_box();
+        let help_and_version = custom.create().into_box();
 
         let mut args = args.into();
         args.check_complete()?;
@@ -175,12 +175,7 @@ impl<T: 'static> OptionParser<T> {
         let result = ctx.run_inner_executor(lazy, &self.inner, Some(&self.info), scope_start);
         if self.info.fallback_to_usage && no_input && matches!(&result, Err(Error::Missing(_))) {
             Err(Error::Final(ParseFailure::Stdout(
-                crate::visitors::help::render_help(
-                    self,
-                    Some(ctx.shared.help_and_version),
-                    &ctx.path,
-                    false,
-                ),
+                crate::visitors::help::render_help(self, Some(ctx.shared.help), &ctx.path, false),
             )))
         } else {
             result
@@ -214,7 +209,13 @@ impl<T: 'static> OptionParser<T> {
     }
 
     pub fn version(mut self, text: &'static str) -> Self {
-        self.info.version = Some(text);
+        let parser = crate::short('V')
+            .long("version")
+            .help("Prints version information")
+            .req_flag(())
+            .hide_usage()
+            .then_exit(move |_| Exit::success(format!("Version: {text}")));
+        self.inner = self.inner.or_else(parser).into_rc();
         self
     }
 

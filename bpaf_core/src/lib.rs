@@ -1403,12 +1403,12 @@ impl<'p> RawCtx<'p> {
 
     pub(crate) fn new(
         args: &'p Args,
-        extra: &'p BoxParser<Extra>,
+        help: &'p BoxParser<Extra>,
         visited: &'p dyn Visited,
     ) -> Ctx<'p> {
         let shared = Rc::new(SharedCtx {
             args,
-            help_and_version: extra,
+            help,
             tasks: RefCell::new(Tasks::new()),
             next_free: Cell::new(1),
             wakeup_reason: RefCell::new(Reason::Pass),
@@ -1463,7 +1463,7 @@ impl<'p> RawCtx<'p> {
             };
 
             let ctx = self.fork(None, self.visited);
-            let (handle, act) = ctx.make_raw_task(ctx.shared.help_and_version);
+            let (handle, act) = ctx.make_raw_task(ctx.shared.help);
 
             let alt_scope_start = ctx.shared.next_free.get();
             // See `OptionParser::run_in_ctx` for why we reset `current_task`
@@ -1482,7 +1482,6 @@ impl<'p> RawCtx<'p> {
                         return Err(Error::Final(match xtra {
                             Extra::Help => ctx.render_help(false),
                             Extra::LongHelp => ctx.render_help(true),
-                            Extra::Version(v) => ParseFailure::stdout(format!("Version: {v}\n")),
                         }));
                     }
                     Err(e @ Error::Final(_)) => return Err(e),

@@ -44,7 +44,7 @@ pub(crate) struct SharedCtx<'p> {
     pub(crate) cursor: Cell<u32>,
 
     /// instantiated --help/--version parser
-    pub(crate) help_and_version: &'p BoxParser<Extra>,
+    pub(crate) help: &'p BoxParser<Extra>,
 
     /// Global task pool shared across contexts from fork
     pub(crate) tasks: RefCell<Tasks<'p>>,

@@ -114,7 +114,7 @@ impl crate::RawCtx<'_> {
             p.vi(&mut g);
         }
         self.visited.vi(&mut g.help);
-        self.shared.help_and_version.vi(&mut g.help);
+        self.shared.help.vi(&mut g.help);
         crate::error::ParseFailure::Stdout(g.help.render())
     }
 }

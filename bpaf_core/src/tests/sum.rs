@@ -63,8 +63,8 @@ Available options:
     -a
     -b
     -c
-    -h, --help     Prints help information
     -V, --version  Prints version information
+    -h, --help     Prints help information
 ";
     assert_eq!(expected_help, help);
 

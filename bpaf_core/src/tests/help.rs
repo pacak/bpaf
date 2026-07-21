@@ -272,8 +272,8 @@ header
 Available options:
     -p, --parser=ARG  help
                       [env:BPAF_VARIABLE is not set]
-    -h, --help        Prints help information
     -V, --version     Prints version information
+    -h, --help        Prints help information
 
 footer
 footer
@@ -872,8 +872,8 @@ fn help_and_version_newline() {
 
 Available options:
     -a
-    -h, --help     Prints help information
     -V, --version  Prints version information
+    -h, --help     Prints help information
 ";
     assert_eq!(r, expected);
 
@@ -1002,8 +1002,8 @@ Usage: app [-a]
 
 Available options:
     -a
-    -h, --help     Prints help information
     -V, --version  Prints version information
+    -h, --help     Prints help information
 ";
     assert_eq!(r, expected);
 
@@ -1019,8 +1019,9 @@ fn custom_version_flag() {
         .long("ver")
         .help("For version")
         .req_flag(())
+        .hide_usage()
         .then_exit(|_| Exit::success("v 3.14"));
-    let parser = a.to_options().version("3.14").version_parser(vf);
+    let parser = a.or_else(vf).to_options();
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
@@ -1028,8 +1029,8 @@ Usage: app [-a]
 
 Available options:
     -a
-    -h, --help  Prints help information
     -v, --ver   For version
+    -h, --help  Prints help information
 ";
     assert_eq!(r, expected);
 
@@ -1174,7 +1175,7 @@ fn version_works() {
         .unwrap_err()
         .unwrap_stderr();
 
-    let expected = "'--version' is not expected in this context\n";
+    let expected = "'--version' cannot be used at the same time as '-a'\n";
     assert_eq!(r, expected);
 }
 

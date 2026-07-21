@@ -444,10 +444,6 @@ impl ParseFailure {
         ParseFailure::Stderr(Styled { raw, tab: 0 })
     }
 
-    pub(crate) fn stdout(raw: String) -> Self {
-        ParseFailure::Stdout(Styled { raw, tab: 0 })
-    }
-
     pub fn exit_code(&self) -> i32 {
         match self {
             ParseFailure::Stdout(_) => 0,
