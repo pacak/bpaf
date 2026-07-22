@@ -1019,7 +1019,7 @@ fn custom_version_flag() {
         .long("ver")
         .help("For version")
         .req_flag(())
-        .then_exit(|_| success("v 3.14"));
+        .then_exit(|_| Exit::success("v 3.14"));
     let parser = a.to_options().version("3.14").version_parser(vf);
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();

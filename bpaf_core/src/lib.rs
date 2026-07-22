@@ -1666,29 +1666,51 @@ impl<T> Exit<T> {
     }
 }
 
-impl<T: 'static> Parser for Exit<T> {
+impl<T> Exit<T> {
+    pub fn failure(msg: impl Into<Styled>) -> Exit<T> {
+        Exit {
+            ctx: PhantomData,
+            code: 1,
+            msg: msg.into(),
+        }
+    }
+
+    pub fn success(msg: impl Into<Styled>) -> Exit<T> {
+        Exit {
+            ctx: PhantomData,
+            code: 0,
+            msg: msg.into(),
+        }
+    }
+}
+
+pub struct Fail<T> {
+    ctx: PhantomData<T>,
+    msg: &'static str,
+}
+
+pub fn fail<T>(msg: &'static str) -> Fail<T> {
+    Fail {
+        ctx: PhantomData,
+        msg,
+    }
+}
+
+impl<T: 'static> Parser for Fail<T> {
     type Output = T;
-    fn eval(&self, _: Ctx) -> impl Future<Output = Result<T, Error>> {
-        std::future::ready(Err(self.to_error()))
+
+    fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> + 'p {
+        let pos = ctx.cursor().get();
+        let err = Error::Problem(
+            pos,
+            Problem::Dynamic {
+                err: self.msg.to_string(),
+            },
+        );
+        std::future::ready(Err(err))
     }
 
     fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
-}
-
-pub fn fail<T>(msg: impl Into<Styled>) -> Exit<T> {
-    Exit {
-        ctx: PhantomData,
-        code: 1,
-        msg: msg.into(),
-    }
-}
-
-pub fn success<T>(msg: impl Into<Styled>) -> Exit<T> {
-    Exit {
-        ctx: PhantomData,
-        code: 0,
-        msg: msg.into(),
-    }
 }
 
 pub struct Cargo<P> {

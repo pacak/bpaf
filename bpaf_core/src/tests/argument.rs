@@ -200,7 +200,7 @@ fn missing_value_handler_returns_error_alt() {
     let a = short('a')
         .req_flag(())
         .hide()
-        .then_exit(|_| fail("-a requires a numeric value"));
+        .then_exit(|_| Exit::failure("-a requires a numeric value"));
     let a = short('a').argument::<u32>("A").or_else(a);
     let parser = a.to_options();
 
