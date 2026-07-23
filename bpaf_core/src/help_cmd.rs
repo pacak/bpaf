@@ -61,7 +61,7 @@ fn walk<'a>(mut stack: &[String], mut ctx: Ctx<'a>) -> ParseFailure {
             }
         }
     }
-    ctx.render_help(true)
+    ctx.render_help(crate::Help::Full)
 }
 
 struct HelpCmd<I, T> {
@@ -82,6 +82,7 @@ impl<T: 'static, I: Parser<Output = Vec<String>>> Parser for HelpCmd<I, T> {
     }
 }
 
+/// Add a `help` command to this level
 pub fn help_command<T: 'static>() -> impl Parser<Output = T> {
     HelpCmd {
         inner: positional::<String>("NAME")

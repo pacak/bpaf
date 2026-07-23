@@ -14,7 +14,7 @@ use crate::Executor;
 
 use crate::{
     Conflict, Id, KillReason, Lit, Name, PeckingOrder, Reason, TaskInfo, Visited, args::Args,
-    info::Extra, tasks::Tasks, traits::BoxParser,
+    help::Help, tasks::Tasks, traits::BoxParser,
 };
 
 type DynamicOsStrCheck = Rc<dyn Fn(&OsStr) -> bool>;
@@ -44,7 +44,7 @@ pub(crate) struct SharedCtx<'p> {
     pub(crate) cursor: Cell<u32>,
 
     /// instantiated --help/--version parser
-    pub(crate) help: &'p BoxParser<Extra>,
+    pub(crate) help: &'p BoxParser<Help>,
 
     /// Global task pool shared across contexts from fork
     pub(crate) tasks: RefCell<Tasks<'p>>,

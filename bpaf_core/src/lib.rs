@@ -11,6 +11,7 @@ mod core_consumers;
 mod ctx;
 pub mod custom_help;
 mod error;
+pub mod help;
 mod help_cmd;
 mod info;
 mod macros;
@@ -180,7 +181,8 @@ use crate::{
     args::Args,
     complete::CReq,
     console_writer::Styled,
-    info::{Extra, Info},
+    help::Help,
+    info::Info,
     os_str::OsStrExt,
     pecking::Mixer,
     utils::Vec1,
@@ -195,7 +197,6 @@ pub use crate::{
     console_writer::{Colorscheme, Style},
     consumers::*,
     custom_help::{HelpCallback, HelpItem, HelpLiteral},
-    help_cmd::help_command,
     traits::{Parser, Visited},
     vault::Key,
 };
@@ -1407,7 +1408,7 @@ impl<'p> RawCtx<'p> {
 
     pub(crate) fn new(
         args: &'p Args,
-        help: &'p BoxParser<Extra>,
+        help: &'p BoxParser<Help>,
         visited: &'p dyn Visited,
     ) -> Ctx<'p> {
         let shared = Rc::new(SharedCtx {
@@ -1472,8 +1473,7 @@ impl<'p> RawCtx<'p> {
 
         if let Some(h) = hh {
             r = match h.take() {
-                Ok(Extra::Help) => Err(Error::Final(self.render_help(false))),
-                Ok(Extra::LongHelp) => Err(Error::Final(self.render_help(true))),
+                Ok(help) => Err(Error::Final(self.render_help(help))),
                 Err(Error::Silent(_) | Error::Problem(_, _) | Error::Missing(_)) => r,
                 Err(e @ (Error::Final(_) | Error::CompReply(_) | Error::CompValue(_))) => Err(e),
             }
