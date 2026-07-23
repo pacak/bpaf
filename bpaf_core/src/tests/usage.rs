@@ -613,8 +613,6 @@ fn global_optional_sum_in_sum() {
     assert_eq!(usage(&parser), expected);
 }
 
-
-
 // #[test]
 // fn many_strict() {
 //     let a = short('a').switch();

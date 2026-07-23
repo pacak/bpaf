@@ -33,7 +33,7 @@ use crate::{
 };
 
 impl<'a> Help<'a> {
-    fn new(path: &'a str, detailed: bool) -> Help<'a> {
+    fn new(path: &'a str, detailed: crate::Help) -> Help<'a> {
         Help {
             path,
             detailed,
@@ -107,7 +107,7 @@ impl<'a> Visitor<'a> for GlobalOnly<'a> {
 }
 
 impl crate::RawCtx<'_> {
-    pub(crate) fn render_help(&self, detailed: bool) -> crate::error::ParseFailure {
+    pub(crate) fn render_help(&self, detailed: crate::Help) -> crate::error::ParseFailure {
         let h = Help::new(&self.path, detailed);
         let mut g = GlobalOnly::new(h);
         for p in self.shared.parsers.borrow().iter() {
@@ -117,20 +117,6 @@ impl crate::RawCtx<'_> {
         self.shared.help.vi(&mut g.help);
         crate::error::ParseFailure::Stdout(g.help.render())
     }
-}
-
-pub fn render_help(
-    parser: &dyn Visited,
-    extra: Option<&dyn Visited>,
-    path: &str,
-    detailed: bool,
-) -> Styled {
-    let mut h = Help::new(path, detailed);
-    parser.vi(&mut h);
-    if let Some(extra) = extra {
-        extra.vi(&mut h);
-    }
-    h.render()
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -230,7 +216,7 @@ pub struct Help<'a> {
     /// Maximum seen tab slice (under the limit)
     max_tab: usize,
 
-    pub(crate) detailed: bool,
+    pub(crate) detailed: crate::Help,
 
     output: String,
 }
@@ -510,7 +496,7 @@ impl Help<'_> {
     fn help(&mut self, help: Option<&str>) {
         self.mut_buf().push('\t');
         if let Some(mut help) = help {
-            if !self.detailed {
+            if self.detailed == crate::Help::Brief {
                 help = help.split_once("\n\n").map_or(help, |h| h.0);
             }
             self.copy_text(true, help);

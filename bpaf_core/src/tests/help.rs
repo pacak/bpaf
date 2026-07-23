@@ -967,10 +967,13 @@ Available commands:
 #[test]
 fn custom_help_flag() {
     let a = short('a').help("Do A").req_flag('a');
-    let halp = short('H')
-        .long("halp")
-        .help("Verbose help!")
-        .req_flag(crate::info::Help::Full);
+    fn halp() -> BoxParser<Help> {
+        short('H')
+            .long("halp")
+            .help("Verbose help!")
+            .req_flag(crate::help::Help::Full)
+            .into_box()
+    }
     let parser = a.to_options().help_parser(halp).fallback_to_usage();
 
     let r = parser.run_inner("--halp").unwrap_err().unwrap_stdout();
@@ -1058,7 +1061,8 @@ fn help_command_works() {
         .to_options()
         .command("gamma")
         .help("do gamma");
-    let parser = construct!([a, b, c, help_command()]).to_options();
+    let help = help::command();
+    let parser = construct!([a, b, c, help]).to_options();
 
     let r = parser.run_inner("help alpha").unwrap_err().unwrap_stdout();
     let expected = "does alpha (descr)
@@ -1108,7 +1112,7 @@ fn help_command_two_levels() {
         .descr("outer descr")
         .command("outer")
         .help("outer help");
-    let parser = construct!([outer, help_command()]).to_options();
+    let parser = outer.or_else(help::command()).to_options();
 
     let r = parser
         .run_inner("help outer inner")

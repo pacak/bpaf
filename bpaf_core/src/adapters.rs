@@ -137,16 +137,14 @@ pub struct OptionParser<T> {
 
 impl<T: 'static> OptionParser<T> {
     pub fn run_inner(&self, args: impl Into<Args>) -> Result<T, ParseFailure> {
-        let custom = match self.info.custom.as_deref() {
-            Some(custom) => custom,
-            None => &Custom::default(),
-        };
-        let help_and_version = custom.create().then_exit(Exit::current_parser).into_box();
+        let help = (self.info.help)()
+            .then_exit(Exit::current_parser)
+            .into_box();
 
         let mut args = args.into();
         args.check_complete()?;
 
-        let ctx = RawCtx::new(&args, &help_and_version, self);
+        let ctx = RawCtx::new(&args, &help, self);
         Ok(self.run_in_ctx(false, ctx)?)
     }
 
@@ -154,7 +152,7 @@ impl<T: 'static> OptionParser<T> {
         match self.run_inner(std::env::args_os()) {
             Ok(r) => r,
             Err(e) => {
-                let mut cs = self.info.get_colorscheme();
+                let mut cs = Some(self.info.colorscheme);
                 if !std::io::IsTerminal::is_terminal(&std::io::stdout()) {
                     cs = None;
                 }
@@ -174,9 +172,7 @@ impl<T: 'static> OptionParser<T> {
         let no_input = ctx.shared.args.len() == ctx.cursor().get();
         let result = ctx.run_inner_executor(lazy, &self.inner, Some(&self.info), scope_start);
         if self.info.fallback_to_usage && no_input && matches!(&result, Err(Error::Missing(_))) {
-            Err(Error::Final(ParseFailure::Stdout(
-                crate::visitors::help::render_help(self, Some(ctx.shared.help), &ctx.path, false),
-            )))
+            Err(Error::Final(ctx.render_help(crate::Help::Brief)))
         } else {
             result
         }

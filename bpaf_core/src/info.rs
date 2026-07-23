@@ -1,121 +1,40 @@
 //! All the customization is done though custom/info
 
-use crate::{OptionParser, Parser, console_writer::Colorscheme, error::Error, traits::RcParser};
+use crate::{OptionParser, console_writer::Colorscheme, help, traits::BoxParser};
 
-#[derive(Default)]
 pub struct Info {
     pub header: Option<&'static str>,
     pub descr: Option<&'static str>,
     pub footer: Option<&'static str>,
     pub usage: Option<&'static str>,
     pub fallback_to_usage: bool,
-    pub(crate) custom: Option<Box<Custom>>,
+    pub help: fn() -> BoxParser<help::Help>,
+    pub colorscheme: &'static Colorscheme,
 }
 
-impl Info {
-    pub(crate) fn get_colorscheme(&self) -> Option<&'static Colorscheme> {
-        if let Some(custom) = &self.custom {
-            custom.colorscheme
-        } else {
-            Some(&Colorscheme::BRIGHT)
+impl Default for Info {
+    fn default() -> Self {
+        Self {
+            header: Default::default(),
+            descr: Default::default(),
+            footer: Default::default(),
+            usage: Default::default(),
+            fallback_to_usage: false,
+            help: help::once_twice,
+            colorscheme: &Colorscheme::BRIGHT,
         }
     }
 }
 
 impl<T> OptionParser<T> {
-    fn custom(&mut self) -> &mut Custom {
-        self.info.custom.get_or_insert_default()
-    }
-
     /// Parser must consume at least one item, use [`Named::req_switch`] or similar
-    pub fn help_parser(mut self, parser: impl Parser<Output = Help> + 'static) -> Self {
-        self.custom().help = Some(parser.into_rc());
+    pub fn help_parser(mut self, parser: fn() -> BoxParser<help::Help>) -> Self {
+        self.info.help = parser;
         self
     }
 
     pub fn colorscheme(mut self, colorscheme: &'static Colorscheme) -> Self {
-        self.custom().colorscheme = Some(colorscheme);
+        self.info.colorscheme = colorscheme;
         self
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Help {
-    Brief,
-    Full,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Copy)]
-pub(crate) enum Extra {
-    Help,
-    LongHelp,
-}
-
-#[derive(Default, Clone)]
-pub struct Custom {
-    // --help or -h
-    pub(crate) help: Option<RcParser<Help>>,
-    pub(crate) colorscheme: Option<&'static Colorscheme>,
-}
-
-impl Custom {
-    fn make_help(&self) -> impl Parser<Output = Extra> + 'static {
-        use crate::{Parser, short};
-        WithBackup {
-            primary: self.help.clone(),
-            backup: short('h')
-                .long("help")
-                .help("Prints help information")
-                .req_flag(Help::Brief),
-        }
-        .count()
-        .parse(|c| match c {
-            1 => Ok(Extra::Help),
-            2 => Ok(Extra::LongHelp),
-            _ => Err("not help"),
-        })
-    }
-
-    pub(crate) fn create(&self) -> impl Parser<Output = Extra> + 'static {
-        self.make_help().hide_usage()
-    }
-}
-
-struct WithBackup<A, B> {
-    primary: Option<A>,
-    backup: B,
-}
-impl<T: 'static, A: Parser<Output = T>, B: Parser<Output = T>> Parser for WithBackup<A, B> {
-    type Output = T;
-
-    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
-        match &self.primary {
-            Some(p) => p.eval(ctx).await,
-            None => self.backup.eval(ctx).await,
-        }
-    }
-    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
-        match &self.primary {
-            Some(p) => p.visit(visitor),
-            None => self.backup.visit(visitor),
-        }
-    }
-}
-
-impl<P: Parser> Parser for Option<P> {
-    type Output = P::Output;
-
-    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
-        if let Some(p) = self {
-            p.eval(ctx).await
-        } else {
-            Err(Error::Silent("There is no parser"))
-        }
-    }
-
-    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
-        if let Some(p) = self {
-            p.visit(visitor)
-        }
     }
 }
