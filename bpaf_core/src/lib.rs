@@ -1011,26 +1011,22 @@ impl<'p> Executor<'p> {
             // - to release the triggers we need to release the reactor
             let best_size = self.stage_1(front);
 
-            if self.to_wake.is_empty()
-                && !self.ctx.strict_pos.get()
-                && let Some(front) = self.is_group_like(front)
-            {
-                self.execute_group(front)?;
-                self.propagate();
-                continue;
-            }
-
-            if self.to_wake.is_empty()
-                && let Some(scope) = { self.ctx.early_exit.borrow().last().copied() }
-                && self.kill_in_scope(scope, KillReason::NoMatchingInput)
-            {
-                continue;
-            }
-
             if self.to_wake.is_empty() {
-                self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
-                let pos = self.ctx.cursor().get();
-                return Err(Error::Problem(pos, self.complain_about(front)));
+                if !self.ctx.strict_pos.get()
+                    && let Some(front) = self.is_group_like(front)
+                {
+                    self.execute_group(front)?;
+                    self.propagate();
+                    continue;
+                } else if let Some(scope) = { self.ctx.early_exit.borrow().last().copied() }
+                    && self.kill_in_scope(scope, KillReason::NoMatchingInput)
+                {
+                    continue;
+                } else {
+                    self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
+                    let pos = self.ctx.cursor().get();
+                    return Err(Error::Problem(pos, self.complain_about(front)));
+                }
             }
 
             self.stage_2(best_size);
