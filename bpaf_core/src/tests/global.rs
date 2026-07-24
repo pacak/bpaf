@@ -715,3 +715,13 @@ Global options:
 
     assert_eq!(r, expected);
 }
+
+#[test]
+fn missing_global() {
+    let a = short('a').req_flag(()).global();
+    let b = short('b').switch();
+    let parser = (a, b).to_options();
+
+    let r = parser.run_inner("-b").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected '-a'\n");
+}
