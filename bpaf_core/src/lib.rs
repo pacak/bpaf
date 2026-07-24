@@ -763,6 +763,49 @@ impl<'p> RawCtx<'p> {
 
 use crate::tasks::Tasks;
 
+/// Tracks forward progress of the executor to detect infinite loops.
+///
+/// If the cursor does not advance after several iterations, it means we have
+/// a parser that spawns children but nothing consumes input - an unreachable
+/// invariant violation.
+struct ProgressTracker<'p> {
+    prev_pos: u32,
+    duds: u32,
+    ctx: Ctx<'p>,
+}
+
+impl<'p> ProgressTracker<'p> {
+    fn new(ctx: &Ctx<'p>) -> Self {
+        Self {
+            prev_pos: ctx.cursor().get(),
+            duds: 0,
+            ctx: ctx.clone(),
+        }
+    }
+
+    fn tick(&mut self) {
+        let current_pos = self.ctx.cursor().get();
+        if self.prev_pos == current_pos {
+            self.duds += 1;
+            if self.duds == 10 {
+                let front = self
+                    .ctx
+                    .shared
+                    .args
+                    .get(current_pos)
+                    .expect("cursor past end of args during infinite loop detection");
+                unreachable!(
+                    "We made a lot of iterations trying to parse {front:?} but made no progress. \
+                              This shouldn't be reachable, please report it as a bug."
+                );
+            }
+        } else {
+            self.duds = 0;
+        }
+        self.prev_pos = current_pos;
+    }
+}
+
 /// Executor connected to a context
 ///
 /// Created with [`Executor::new`]
@@ -929,8 +972,7 @@ impl<'p> Executor<'p> {
     }
 
     fn execute(&mut self) -> Result<(), Error> {
-        let mut prev_pos = self.ctx.cursor().get();
-        let mut duds = 0;
+        let mut progress = ProgressTracker::new(&self.ctx);
 
         // We'll stop once there's no more data or no more candidates to run
         loop {
@@ -938,23 +980,7 @@ impl<'p> Executor<'p> {
                 break;
             }
 
-            // If we want to track progress by having pending parsers - we need to
-            // also avoid loops where the same parser gets spawned and consumes nothing.
-            // Currently all the repeated parsers makes sure to handle this, but this
-            // makes a good sanity check.
-            if prev_pos == self.ctx.cursor().get() {
-                duds += 1;
-                if duds == 10 {
-                    let front = &self.ctx.shared.args[self.ctx.cursor().get()];
-                    unreachable!(
-                        "We made a lot of iterations trying to parse {front:?} but made no progress. \
-                                  This shouldn't be reachable, please report it as a bug."
-                    );
-                }
-            } else {
-                duds = 0;
-            }
-            prev_pos = self.ctx.cursor().get();
+            progress.tick();
 
             assert!(self.to_propagate.is_empty());
             self.process_scheduled();
