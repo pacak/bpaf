@@ -932,13 +932,6 @@ impl<'p> Executor<'p> {
         let mut prev_pos = self.ctx.cursor().get();
         let mut duds = 0;
 
-        // Save wakeup_reason so that nested executor runs don't leak
-        // their modifications back to the parent.
-        let saved_reason = std::mem::replace(
-            &mut *self.ctx.shared.wakeup_reason.borrow_mut(),
-            Reason::Pass,
-        );
-
         // We'll stop once there's no more data or no more candidates to run
         loop {
             if self.ctx.shared.stop.take() {
@@ -971,7 +964,6 @@ impl<'p> Executor<'p> {
             };
 
             if let Some(out) = self.check_autocomplete(front) {
-                *self.ctx.shared.wakeup_reason.borrow_mut() = saved_reason;
                 return out;
             }
 
@@ -1012,7 +1004,6 @@ impl<'p> Executor<'p> {
             if self.to_wake.is_empty() {
                 self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
                 let pos = self.ctx.cursor().get();
-                *self.ctx.shared.wakeup_reason.borrow_mut() = saved_reason;
                 return Err(Error::Problem(pos, self.complain_about(front)));
             }
 
@@ -1059,7 +1050,6 @@ impl<'p> Executor<'p> {
         // reset next_free to reclaim the ID range for this executor
         self.ctx.shared.next_free.set(self.scope_start.0);
 
-        *self.ctx.shared.wakeup_reason.borrow_mut() = saved_reason;
         Ok(())
     }
 
@@ -1467,7 +1457,14 @@ impl<'p> RawCtx<'p> {
             self.add_task(task);
         }
         self.shared.parsers.borrow_mut().push(self.visited);
+
+        // Save wakeup_reason so that nested executor runs don't leak
+        // their modifications back to the parent.
+        let saved_reason =
+            std::mem::replace(&mut *self.shared.wakeup_reason.borrow_mut(), Reason::Pass);
         let mut r = Executor::new(self.clone(), Id(scope_start), info.is_some()).execute();
+        *self.shared.wakeup_reason.borrow_mut() = saved_reason;
+
         self.shared.parsers.borrow_mut().pop();
 
         if let Some(h) = hh {
