@@ -1038,7 +1038,10 @@ impl<'p> Executor<'p> {
 
             self.ctx.cursor().update(|c| c + best_size);
         }
+        self.cleanup()
+    }
 
+    fn cleanup(&mut self) -> Result<(), Error> {
         // terminate all the currently active tasks
         self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
         self.process_scheduled();
@@ -1050,32 +1053,28 @@ impl<'p> Executor<'p> {
             .borrow_mut()
             .assert_no_tasks_past_end(self.scope_start.0);
 
-        {
-            let sums = self.ctx.shared.sums.borrow();
-            let in_scope: Vec<_> = sums
-                .keys()
-                .filter(|k| self.current_scope().contains(**k))
-                .collect();
-            assert!(
-                in_scope.is_empty(),
-                "All sums in executor scope should be removed, {:?}",
-                in_scope
-            );
-        }
+        let sums = self.ctx.shared.sums.borrow();
+        let in_scope: Vec<_> = sums
+            .keys()
+            .filter(|k| self.current_scope().contains(**k))
+            .collect();
+        assert!(
+            in_scope.is_empty(),
+            "All sums in executor scope should be removed, {:?}",
+            in_scope
+        );
 
         // Clear conflicts created within this executor's scope
-        {
-            let scope = self.current_scope();
-            self.ctx
-                .shared
-                .conflicts
-                .borrow_mut()
-                .retain(|c| !scope.contains(c.id()));
-        }
+
+        let scope = self.current_scope();
+        self.ctx
+            .shared
+            .conflicts
+            .borrow_mut()
+            .retain(|c| !scope.contains(c.id()));
 
         // reset next_free to reclaim the ID range for this executor
         self.ctx.shared.next_free.set(self.scope_start.0);
-
         Ok(())
     }
 
