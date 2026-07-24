@@ -2,7 +2,7 @@
 //! a file with one of two extensions. If you want to specify just one
 //! extension having it as something like "*.rs" is good enough
 
-use bpaf::{positional, Parser, ShellComp};
+use bpaf::{Parser, ShellComp, positional};
 use std::path::PathBuf;
 
 fn main() {

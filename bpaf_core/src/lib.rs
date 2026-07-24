@@ -1823,6 +1823,7 @@ mod tests {
     mod git;
     mod global;
     mod help;
+    mod leftovers;
     mod nested;
     mod offset;
     mod osstring;

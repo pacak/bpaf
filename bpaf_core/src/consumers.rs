@@ -765,3 +765,60 @@ where
 {
     PureWith { act }
 }
+
+pub fn leftovers<T>() -> Leftovers<T> {
+    Leftovers { ctx: PhantomData }
+}
+
+pub struct Leftovers<T> {
+    ctx: PhantomData<T>,
+}
+
+impl<T> Parser for Leftovers<T>
+where
+    T: FromStr + 'static,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    type Output = Vec<T>;
+
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
+        let ctx = ctx.clone();
+
+        let id = ctx.shared.current_task.borrow().id;
+        let scope = Scope {
+            start: id,
+            end: Id(id.0 + 1),
+        };
+        ctx.early_exit.borrow_mut().insert(scope);
+        r#yield().await;
+        ctx.early_exit.borrow_mut().remove(&scope);
+        let start = ctx.cursor().get();
+        let leftovers = if matches!(
+            &*ctx.shared.wakeup_reason.borrow(),
+            Reason::Kill(KillReason::NoMatchingInput)
+        ) {
+            ctx.cursor().set(ctx.shared.args.len());
+            ctx.consume(ctx.shared.args.len() - start);
+            &ctx.shared.args.items[start as usize..]
+        } else {
+            return Ok(Vec::new());
+        };
+
+        let mut out = Vec::with_capacity(leftovers.len());
+
+        for (pos, os) in (start..).zip(leftovers) {
+            match parse_os_str(os) {
+                Ok(v) => out.push(v),
+                Err(problem) => return Err(Error::Problem(pos, problem)),
+            }
+        }
+
+        Ok(out)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        if visitor.identify() == VKind::Usage {
+            visitor.item(Item::Rendered { text: "..." });
+        }
+    }
+}
