@@ -281,7 +281,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 help,
                 strict: _,
             } => {
-                _ = write!(&mut self.mut_buf(), "    {meta}");
+                self.write_buf(format_args!("    {meta}"));
                 self.track_tab(meta.width());
                 self.help(help);
             }
@@ -291,7 +291,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 inner: _,
             } => {
                 let name = lit_name(names);
-                _ = write!(&mut self.mut_buf(), "{name:#}");
+                self.write_buf(format_args!("{name:#}"));
                 self.track_tab(name.col_width());
                 self.help(help);
             }
@@ -304,12 +304,12 @@ impl<'a> Visitor<'a> for Help<'a> {
                             // pure env nested parser, makes little sense.
                             return;
                         };
-                        _ = write!(&mut self.mut_buf(), "{:#} ", name);
+                        self.write_buf(format_args!("{:#} ", name));
                         named.help
                     }
                     Nest::Keyword(keyword) => {
                         let name = lit_name(&keyword.named.names);
-                        _ = write!(&mut self.mut_buf(), "{:#} ", name);
+                        self.write_buf(format_args!("{:#} ", name));
                         keyword.named.help
                     }
                 };
@@ -417,15 +417,19 @@ impl Help<'_> {
             .push_str(&format!("\t[env:{env} {status}]\n"));
     }
 
-    fn write_named_item(&mut self, named: &crate::Named, meta: Option<crate::Metavar>) {
+    fn write_buf(&mut self, args: std::fmt::Arguments<'_>) {
         use std::fmt::Write as _;
+        _ = self.mut_buf().write_fmt(args);
+    }
+
+    fn write_named_item(&mut self, named: &crate::Named, meta: Option<crate::Metavar>) {
         let Some(sl) = named.get_shortlong() else {
             return;
         };
-        _ = match meta {
-            None => write!(self.mut_buf(), "{sl:#}"),
-            Some(meta) => write!(self.mut_buf(), "{sl:#}={meta}"),
-        };
+        match meta {
+            None => self.write_buf(format_args!("{sl:#}")),
+            Some(meta) => self.write_buf(format_args!("{sl:#}={meta}")),
+        }
         self.track_tab(sl.col_width() + meta.map_or(0, |m| 1 + m.width()));
         self.help(named.help);
         if let Some(env) = named.env.first() {
