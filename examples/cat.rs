@@ -9,7 +9,7 @@ use bpaf::*;
 use std::{
     ffi::OsString,
     fs::File,
-    io::{stdin, BufRead, BufReader, Read},
+    io::{BufRead, BufReader, Read, stdin},
 };
 
 fn main() {
