@@ -75,53 +75,28 @@ impl Usage<'_> {
                         }
                     }
                 }
-                Event::Group(
-                    g @ Group {
-                        group,
-                        children,
-                        optional,
-                        visible,
-                    },
-                ) => {
-                    match group {
+                Event::Group(g) => {
+                    match g.group {
                         VisitGroup::Many => {
-                            // - this is not possible, many will be always sitting in a
-                            // product...
-                            debug_assert!(*children <= 1, "Many should be a product");
-                        }
-                        VisitGroup::Optional => {
-                            if !optional {
-                                if !first {
-                                    out.push_str(sep);
-                                }
-                                out.push('[');
-                                first = true;
-                            }
+                            debug_assert!(g.children <= 1, "Many should be a product");
                         }
                         VisitGroup::Prod => {
                             if !first {
                                 out.push_str(sep);
                             }
-                            if *visible {
-                                out.push(if *optional { '[' } else { '(' });
+                            if g.visible {
+                                out.push(if g.optional { '[' } else { '(' });
                             }
                             first = true;
                         }
-                        VisitGroup::Sum => {
-                            if *visible {
-                                // Like Prod/Optional: emit separator before the opening
-                                // bracket if this is not the first element in the parent,
-                                // then mark `first = false` so items inside don't get
-                                // the Sum's `" | "` separator prepended.
+                        _ => {
+                            if let Some(ch) = g.open_char() {
                                 if !first {
                                     out.push_str(sep);
                                 }
-                                out.push(if *optional { '[' } else { '(' });
+                                out.push(ch);
                                 first = true;
                             }
-                        }
-                        VisitGroup::Global => {
-                            // transparent in usage
                         }
                     }
                     stack.push(*g);
@@ -139,24 +114,16 @@ impl Usage<'_> {
                             }
                             out.push_str("...");
                         }
-                        VG::Optional => {
-                            if !g.optional {
-                                out.push(']');
-                            }
-                        }
                         VG::Prod => {
                             wrote_strict_this_prod = false;
-                            if g.visible {
-                                out.push(if g.optional { ']' } else { ')' });
+                            if let Some(ch) = g.close_char() {
+                                out.push(ch);
                             }
                         }
-                        VG::Sum => {
-                            if g.visible {
-                                out.push(if g.optional { ']' } else { ')' });
+                        _ => {
+                            if let Some(ch) = g.close_char() {
+                                out.push(ch);
                             }
-                        }
-                        VG::Global => {
-                            // transparent in usage
                         }
                     }
                     sep = get_sep(&stack);
@@ -477,6 +444,33 @@ impl Group {
         matches!(self.group, VisitGroup::Sum | VisitGroup::Prod)
             && self.children == 1
             && !self.optional
+    }
+
+    /// Returns the bracket pair to draw around this group, if any.
+    ///
+    /// - `Optional` group draws `[...]` unless absorbed by inner `Prod`/`Sum` (`optional` is set)
+    /// - `Prod`/`Sum`, if `visible` draw either `(...)` or `[...]` depending on `optional`.
+    ///   Some groups are hidden, for example when `Prod` is in a `Sum` - no need to draw
+    ///   inner `Sum`.
+    /// - `Many` and `Global` never produce brackets
+    fn bracket_pair(&self) -> Option<(char, char)> {
+        match self.group {
+            VisitGroup::Optional if !self.optional => Some(('[', ']')),
+            VisitGroup::Prod | VisitGroup::Sum if self.visible => Some(if self.optional {
+                ('[', ']')
+            } else {
+                ('(', ')')
+            }),
+            _ => None,
+        }
+    }
+
+    fn open_char(&self) -> Option<char> {
+        self.bracket_pair().map(|(open, _)| open)
+    }
+
+    fn close_char(&self) -> Option<char> {
+        self.bracket_pair().map(|(_, close)| close)
     }
 }
 
