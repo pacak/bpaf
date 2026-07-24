@@ -274,31 +274,8 @@ impl<'a> Visitor<'a> for Help<'a> {
                 self.footer = info.footer;
                 inner.vi(self);
             }
-            Item::Flag { named } => {
-                let Some(sl) = named.get_shortlong() else {
-                    return;
-                };
-
-                _ = write!(&mut self.mut_buf(), "{sl:#}");
-                self.track_tab(sl.col_width());
-                self.help(named.help);
-
-                if let Some(env) = named.env.first() {
-                    self.env_status(env);
-                }
-            }
-            Item::Arg { named, meta } => {
-                let Some(sl) = named.get_shortlong() else {
-                    return;
-                };
-
-                _ = write!(&mut self.mut_buf(), "{sl:#}={meta}");
-                self.track_tab(sl.col_width() + 1 + meta.width());
-                self.help(named.help);
-                if let Some(env) = named.env.first() {
-                    self.env_status(env);
-                }
-            }
+            Item::Flag { named } => self.write_named_item(named, None),
+            Item::Arg { named, meta } => self.write_named_item(named, Some(meta)),
             Item::Positional {
                 meta,
                 help,
@@ -438,6 +415,22 @@ impl Help<'_> {
         };
         self.mut_buf()
             .push_str(&format!("\t[env:{env} {status}]\n"));
+    }
+
+    fn write_named_item(&mut self, named: &crate::Named, meta: Option<crate::Metavar>) {
+        use std::fmt::Write as _;
+        let Some(sl) = named.get_shortlong() else {
+            return;
+        };
+        _ = match meta {
+            None => write!(self.mut_buf(), "{sl:#}"),
+            Some(meta) => write!(self.mut_buf(), "{sl:#}={meta}"),
+        };
+        self.track_tab(sl.col_width() + meta.map_or(0, |m| 1 + m.width()));
+        self.help(named.help);
+        if let Some(env) = named.env.first() {
+            self.env_status(env);
+        }
     }
 
     fn update_place(&mut self, item: &Item) {
