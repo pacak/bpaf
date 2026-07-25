@@ -192,10 +192,11 @@ impl CratePathReplacer {
                 self.query.segments.len(),
                 self.query.segments.iter(),
                 vec![],
-            ) {
-                input.leading_colon = self.target.leading_colon;
-                input.tree = self.append_suffix_to_target(matched_prefix, suffix);
-            }
+            )
+        {
+            input.leading_colon = self.target.leading_colon;
+            input.tree = self.append_suffix_to_target(matched_prefix, suffix);
+        }
     }
 }
 
