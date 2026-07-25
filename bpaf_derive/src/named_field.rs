@@ -7,8 +7,8 @@ use syn::{
 
 use crate::{
     attrs::{
-        Consumer, FieldAttrs, HelpPlacement, Name, Post, PostParse, StrictName,
-        TurboFish, parse_bpaf_doc_attrs,
+        Consumer, FieldAttrs, HelpPlacement, Name, Post, PostParse, StrictName, TurboFish,
+        parse_bpaf_doc_attrs,
     },
     field::{Shape, split_type},
     help::Help,
@@ -255,14 +255,15 @@ impl StructField {
         if let Consumer::Argument { ty, .. }
         | Consumer::Positional { ty, .. }
         | Consumer::Any { ty, .. } = &mut cons
-            && ty.is_none() {
-                match &shape {
-                    Shape::Optional(t) | Shape::Multiple(t) | Shape::Direct(t) => {
-                        *ty = Some(t.clone());
-                    }
-                    _ => {}
+            && ty.is_none()
+        {
+            match &shape {
+                Shape::Optional(t) | Shape::Multiple(t) | Shape::Direct(t) => {
+                    *ty = Some(t.clone());
                 }
+                _ => {}
             }
+        }
 
         if derived_consumer {
             for pp in &postpr {

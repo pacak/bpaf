@@ -131,17 +131,21 @@ fn split_options_help(h: Help, opts: &mut OptionsCfg) {
         Help::Doc(c) => {
             let mut chunks = LineIter::from(c.as_str());
             if let Some(s) = chunks.next()
-                && opts.descr.is_none() {
-                    opts.descr = Some(Help::Doc(s));
-                }
+                && opts.descr.is_none()
+            {
+                opts.descr = Some(Help::Doc(s));
+            }
             if let Some(s) = chunks.next()
-                && !s.is_empty() && opts.header.is_none() {
-                    opts.header = Some(Help::Doc(s));
-                }
+                && !s.is_empty()
+                && opts.header.is_none()
+            {
+                opts.header = Some(Help::Doc(s));
+            }
             if let Some(s) = chunks.rest()
-                && opts.footer.is_none() {
-                    opts.footer = Some(Help::Doc(s));
-                }
+                && opts.footer.is_none()
+            {
+                opts.footer = Some(Help::Doc(s));
+            }
         }
     }
 }
@@ -155,9 +159,10 @@ fn split_ehelp_into(h: Help, opts_at: usize, attrs: &mut Vec<EAttr>) {
                 attrs.insert(opts_at, EAttr::Descr(Help::Doc(s)));
             }
             if let Some(s) = chunks.next()
-                && !s.is_empty() {
-                    attrs.insert(opts_at, EAttr::Header(Help::Doc(s)));
-                }
+                && !s.is_empty()
+            {
+                attrs.insert(opts_at, EAttr::Header(Help::Doc(s)));
+            }
             if let Some(s) = chunks.rest() {
                 attrs.insert(opts_at, EAttr::Footer(Help::Doc(s)));
             }
@@ -512,17 +517,20 @@ impl ParsedEnumBranch {
                     if let FieldSet::Unit(_, _, _) = branch.fields {
                         let ident = &branch.ident;
                         let enum_name = &branch.enum_name;
-                        branch.fields = FieldSet::Pure(parse_quote!(::bpaf::pure(#enum_name #ident)));
+                        branch.fields =
+                            FieldSet::Pure(parse_quote!(::bpaf::pure(#enum_name #ident)));
                     }
                 }
                 EAttr::NestShort(n) => {
                     if let Some(ref mut cfg) = nest {
-                        cfg.short.push(n.unwrap_or_else(|| ident_to_short(&branch.ident)));
+                        cfg.short
+                            .push(n.unwrap_or_else(|| ident_to_short(&branch.ident)));
                     }
                 }
                 EAttr::NestLong(n) => {
                     if let Some(ref mut cfg) = nest {
-                        cfg.long.push(n.unwrap_or_else(|| ident_to_long(&branch.ident)));
+                        cfg.long
+                            .push(n.unwrap_or_else(|| ident_to_long(&branch.ident)));
                     }
                 }
                 EAttr::NestHelp(h) => {
@@ -548,9 +556,10 @@ impl ParsedEnumBranch {
                 nest.long.push(ident_to_long(&branch.ident));
             }
             if let Some(h) = help
-                && nest.help.is_none() {
-                    nest.help = Some(h);
-                }
+                && nest.help.is_none()
+            {
+                nest.help = Some(h);
+            }
         } else {
             branch.set_inplicit_name();
             if let Some(help) = help {
@@ -558,7 +567,11 @@ impl ParsedEnumBranch {
             }
         }
 
-        Ok(Some(EnumBranch { branch, attrs, nest }))
+        Ok(Some(EnumBranch {
+            branch,
+            attrs,
+            nest,
+        }))
     }
 }
 
@@ -583,16 +596,25 @@ pub(crate) struct EnumBranch {
 
 impl ToTokens for EnumBranch {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let EnumBranch { branch, attrs, nest } = self;
+        let EnumBranch {
+            branch,
+            attrs,
+            nest,
+        } = self;
         if let Some(nest) = nest {
             let names: Vec<StrictName> = nest
                 .short
                 .iter()
                 .map(|c| StrictName::Short { name: c.clone() })
-                .chain(nest.long.iter().map(|s| StrictName::Long { name: s.clone() }))
+                .chain(
+                    nest.long
+                        .iter()
+                        .map(|s| StrictName::Long { name: s.clone() }),
+                )
                 .collect();
             let help = nest.help.iter();
-            quote!(::bpaf:: #( #names .)* #(help(#help).)* nest(#branch) #(.#attrs)*).to_tokens(tokens);
+            quote!(::bpaf:: #( #names .)* #(help(#help).)* nest(#branch) #(.#attrs)*)
+                .to_tokens(tokens);
         } else {
             quote!(#branch #(.#attrs)*).to_tokens(tokens);
         }
@@ -635,11 +657,11 @@ impl Branch {
             && !names
                 .iter()
                 .any(|n| matches!(n, StrictName::Long { .. } | StrictName::Short { .. }))
-            {
-                names.push(StrictName::Long {
-                    name: ident_to_long(&self.ident),
-                });
-            }
+        {
+            names.push(StrictName::Long {
+                name: ident_to_long(&self.ident),
+            });
+        }
     }
     fn push_help(&mut self, help: Help) {
         if let FieldSet::Unit(_, _, h) = &mut self.fields {
