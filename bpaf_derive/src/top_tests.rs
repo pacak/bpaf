@@ -1701,6 +1701,267 @@ fn enum_short_variant_name() {
     assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }
 
+#[test]
+fn struct_nest() {
+    let top: Top = parse_quote! {
+        #[bpaf(nest, long("tag"))]
+        struct Fooo {
+            name: String,
+            verbose: bool,
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn fooo() -> impl ::bpaf::Parser<Output = Fooo> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("tag").nest({
+                let name = ::bpaf::long("name").argument::<String>("ARG");
+                let verbose = ::bpaf::long("verbose").switch();
+                ::bpaf::construct!(Fooo { name, verbose, })
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_implicit_name() {
+    let top: Top = parse_quote! {
+        #[bpaf(nest)]
+        struct Fooo {
+            name: String,
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn fooo() -> impl ::bpaf::Parser<Output = Fooo> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("fooo").nest({
+                let name = ::bpaf::long("name").argument::<String>("ARG");
+                ::bpaf::construct!(Fooo { name, })
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_with_help() {
+    let top: Top = parse_quote! {
+        #[bpaf(nest, long("tag"), help("custom help"))]
+        struct Fooo { }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn fooo() -> impl ::bpaf::Parser<Output = Fooo> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("tag").help("custom help").nest(::bpaf::pure(Fooo {}))
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_doc_help() {
+    let top: Top = parse_quote! {
+        /// My struct
+        #[bpaf(nest, long("tag"))]
+        struct Fooo { }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn fooo() -> impl ::bpaf::Parser<Output = Fooo> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("tag").help("My struct").nest(::bpaf::pure(Fooo {}))
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_empty_struct() {
+    let top: Top = parse_quote! {
+        #[bpaf(nest, long("x"))]
+        struct Empty { }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn empty() -> impl ::bpaf::Parser<Output = Empty> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("x").nest(::bpaf::pure(Empty {}))
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_unit_struct() {
+    let top: Top = parse_quote! {
+        #[bpaf(nest, long("unit"))]
+        struct Unit;
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn unit() -> impl ::bpaf::Parser<Output = Unit> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("unit").nest(::bpaf::pure(Unit))
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_tuple_struct() {
+    let top: Top = parse_quote! {
+        #[bpaf(nest, long("pair"))]
+        struct Pair(#[bpaf(positional("A"))] String, #[bpaf(positional("B"))] u32);
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn pair() -> impl ::bpaf::Parser<Output = Pair> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("pair").nest({
+                let f0 = ::bpaf::positional::<String>("A");
+                let f1 = ::bpaf::positional::<u32>("B");
+                ::bpaf::construct!(Pair(f0, f1, ))
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_short() {
+    let top: Top = parse_quote! {
+        #[bpaf(nest, short('t'), long("tag"))]
+        struct Tagged;
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn tagged() -> impl ::bpaf::Parser<Output = Tagged> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('t').long("tag").nest(::bpaf::pure(Tagged))
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_multiple_names() {
+    let top: Top = parse_quote! {
+        #[bpaf(nest, short('a'), short('b'), long("x"), long("y"))]
+        struct Multi(#[bpaf(positional("A"))] String);
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn multi() -> impl ::bpaf::Parser<Output = Multi> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('a').short('b').long("x").long("y").nest({
+                let f0 = ::bpaf::positional::<String>("A");
+                ::bpaf::construct!(Multi(f0, ))
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_auto_long_with_doc() {
+    let top: Top = parse_quote! {
+        /// My auto struct
+        #[bpaf(nest)]
+        struct AutoStruct;
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn auto_struct() -> impl ::bpaf::Parser<Output = AutoStruct> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("auto-struct").help("My auto struct").nest(::bpaf::pure(AutoStruct))
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_with_boxed() {
+    let top: Top = parse_quote! {
+        #[bpaf(nest, long("tag"), boxed)]
+        struct Fooo {
+            verbose: bool,
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn fooo() -> impl ::bpaf::Parser<Output = Fooo> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("tag").nest({
+                let verbose = ::bpaf::long("verbose").switch();
+                ::bpaf::construct!(Fooo { verbose, })
+            })
+            .boxed()
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_nested_long() {
+    let top: Top = parse_quote! {
+        #[bpaf(nest, long)]
+        struct Named;
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn named() -> impl ::bpaf::Parser<Output = Named> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("named").nest(::bpaf::pure(Named))
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_nest_nested_short() {
+    let top: Top = parse_quote! {
+        #[bpaf(nest, short)]
+        struct Named;
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn named() -> impl ::bpaf::Parser<Output = Named> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('n').nest(::bpaf::pure(Named))
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
 /*
 #[test]
 fn push_down_command() {
