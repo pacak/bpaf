@@ -1,12 +1,12 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 use crate::{
     Ctx, Error, Exit, Id, Item, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem, RawCtx,
-    RcParser, Scope, VKind, Visited,
+    Scope, VKind, Visited,
     args::Args,
     complete::handle_subparser_complete,
     error::MissingItem,
     info::*,
-    traits::{Leaf, VisitGroup},
+    traits::{BoxParser, Leaf, VisitGroup},
     r#yield,
 };
 use std::{borrow::Cow, marker::PhantomData};
@@ -131,7 +131,7 @@ impl<P: Leaf> Optional<P> {
 ///
 /// Created with [`Parser::to_options`]
 pub struct OptionParser<T> {
-    pub(crate) inner: RcParser<T>,
+    pub(crate) inner: BoxParser<T>,
     pub(crate) info: Info,
 }
 
@@ -211,7 +211,7 @@ impl<T: 'static> OptionParser<T> {
             .req_flag(())
             .hide_usage()
             .then_exit(move |_| Exit::success(format!("Version: {text}")));
-        self.inner = self.inner.or_else(parser).into_rc();
+        self.inner = self.inner.or_else(parser).into_box();
         self
     }
 

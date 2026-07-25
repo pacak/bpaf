@@ -49,7 +49,7 @@ pub mod api {
         use crate::{
             Ctx, Kind, Parser, Scope,
             error::Error,
-            traits::{RcParser, VisitGroup, Visitor},
+            traits::{BoxParser, VisitGroup, Visitor},
         };
 
         #[cfg(doc)]
@@ -65,19 +65,19 @@ pub mod api {
         ///
         /// TODO - a few dummy examples
         pub struct Sum<T> {
-            pub items: Vec<RcParser<T>>,
+            pub items: Vec<BoxParser<T>>,
         }
 
         impl<T: 'static> Sum<T> {
             pub fn or_else(&mut self, other: impl Parser<Output = T> + 'static) {
-                self.items.push(other.into_rc());
+                self.items.push(other.into_box());
             }
         }
 
         impl<T: 'static> Parser for Sum<T> {
             type Output = T;
             fn or_else(mut self, other: impl Parser<Output = Self::Output> + 'static) -> Self {
-                self.items.push(other.into_rc());
+                self.items.push(other.into_box());
                 self
             }
 
@@ -203,7 +203,7 @@ pub use crate::{
 use crate::{
     error::{Error, ParseFailure, Problem},
     pecking::PeckingOrder,
-    traits::{RcParser, VisitGroup, Visitor, *},
+    traits::{VisitGroup, Visitor, *},
 };
 
 use std::{

@@ -149,7 +149,7 @@ impl Named {
     pub fn nest<T: 'static, P: Parser<Output = T> + 'static>(self, inner: P) -> Nested<T> {
         Nested {
             outer: Nest::Named(self.req_flag(())),
-            inner: inner.into_rc(),
+            inner: inner.into_box(),
         }
     }
 }
@@ -167,7 +167,7 @@ pub enum Nest {
 /// for the trigger then call [`Named::nest`] or [`Literal::nest`]
 pub struct Nested<T> {
     outer: Nest,
-    inner: RcParser<T>,
+    inner: BoxParser<T>,
 }
 
 impl<T: 'static> Parser for Nested<T> {
@@ -296,7 +296,7 @@ impl Literal {
     pub fn nest<T: 'static, P: Parser<Output = T> + 'static>(self, inner: P) -> Nested<T> {
         Nested {
             outer: Nest::Keyword(self.req_flag(())),
-            inner: inner.into_rc(),
+            inner: inner.into_box(),
         }
     }
 }
