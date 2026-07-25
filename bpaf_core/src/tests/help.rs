@@ -1322,3 +1322,25 @@ Available options:
 
     assert_eq!(r, expected);
 }
+
+#[test]
+fn nest_before_after() {
+    let a = short('a').long("alpha").switch().help("a");
+    let b = short('b').long("beta").nest(positional::<String>("A"));
+    let c = short('c').long("catamaran").switch().help("c");
+    let parser = (a, b, c).to_options();
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "Usage: app [-a] -b {A} [-c]
+
+Available options:
+    -a, --alpha      a
+    -b, --beta A
+    A
+    -c, --catamaran  c
+    -h, --help       Prints help information
+";
+
+    assert_eq!(r, expected);
+}
