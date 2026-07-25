@@ -408,3 +408,13 @@ fn collect_help_items<'a>(inner: &'a dyn Visited) -> Vec<HelpItem<'a>> {
     inner.vi(&mut collector);
     collector.items
 }
+
+pub struct Section<'a>(pub &'a str);
+impl std::fmt::Display for Section<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use crate::custom_help::CUSTOM;
+        const H: &str = Style::Header.ansi();
+        const R: &str = Style::Text.ansi();
+        write!(f, "{CUSTOM}{H}{text}{R}", text = self.0)
+    }
+}
