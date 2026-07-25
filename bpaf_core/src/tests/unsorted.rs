@@ -614,7 +614,7 @@ Available options:
     -e
     -a
     -b
-    -h, --help         Prints help information
+    -h, --help  Prints help information
 ";
     assert_eq!(help, expected);
 }
@@ -656,7 +656,7 @@ Available options:
     -e
     -a
     -b
-    -h, --help         Prints help information
+    -h, --help  Prints help information
 ";
     assert_eq!(help, expected);
 }
