@@ -318,8 +318,12 @@ impl<'a> Visitor<'a> for Help<'a> {
                 inner.vi(&mut u);
                 u.render_to(self.mut_buf());
 
-                self.track_tab(self.written_chars_since(before));
-                self.help(help);
+                if help.is_some() {
+                    self.track_tab(self.written_chars_since(before));
+                    self.help(help);
+                } else {
+                    self.mut_buf().push('\n');
+                }
 
                 self.depth += 1;
                 inner.vi(self);

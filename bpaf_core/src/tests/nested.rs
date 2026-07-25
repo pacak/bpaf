@@ -44,13 +44,13 @@ fn keyword_nested_two_item_arg() {
   Usage: app [-l] COMMAND ...
 
 Available options:
-    -l, --long   with some help
-    -h, --help   Prints help information
+    -l, --long  with some help
+    -h, --help  Prints help information
 
 Available commands:
     set KEY VAL
-    KEY          Name of an option to set
-    VAL          Value to set
+    KEY         Name of an option to set
+    VAL         Value to set
 ";
     assert_eq!(r, expected);
 
@@ -97,10 +97,10 @@ fn chezmoi_nest() {
 
 Available options:
     -a, --add -n=N
-    -n, --num=N     Number to add
-        --doctor    Run diag
-        --check     Perform the check
-    -h, --help      Prints help information
+    -n, --num=N   Number to add
+        --doctor  Run diag
+        --check   Perform the check
+    -h, --help    Prints help information
 "
     );
 
