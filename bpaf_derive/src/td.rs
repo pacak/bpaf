@@ -1,6 +1,7 @@
 use crate::{
     attrs::PostDecor,
     help::Help,
+    top::{ident_to_long, ident_to_short},
     utils::{parse_arg, parse_opt_arg},
 };
 use quote::{ToTokens, quote};
@@ -53,6 +54,32 @@ pub(crate) enum Mode {
     },
 }
 
+/// Raw parsed nest config before name resolution (names may be None for auto-derive)
+#[derive(Debug, Default)]
+pub(crate) struct NestCfgRaw {
+    pub(crate) short: Vec<Option<LitChar>>,
+    pub(crate) long: Vec<Option<LitStr>>,
+    pub(crate) help: Option<Help>,
+}
+
+impl NestCfgRaw {
+    pub(crate) fn into_cfg(self, name: &Ident, help: &mut Option<Help>) -> NestCfg {
+        let mut cfg = NestCfg::default();
+        for s in self.short {
+            cfg.short.push(s.unwrap_or_else(|| ident_to_short(name)));
+        }
+        for l in self.long {
+            cfg.long.push(l.unwrap_or_else(|| ident_to_long(name)));
+        }
+        if cfg.short.is_empty() && cfg.long.is_empty() {
+            cfg.long.push(ident_to_long(name));
+        }
+        cfg.help = self.help.or_else(|| help.take());
+
+        cfg
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct TopInfo {
     /// Should visibility for generated function to be inherited?
@@ -70,6 +97,9 @@ pub(crate) struct TopInfo {
 
     /// Custom absolute path to the `bpaf` crate.
     pub(crate) bpaf_path: Option<syn::Path>,
+
+    /// Nest configuration for wrapping the parser (raw, before name resolution)
+    pub(crate) nest: Option<NestCfgRaw>,
 }
 
 impl Default for TopInfo {
@@ -85,6 +115,7 @@ impl Default for TopInfo {
             attrs: Vec::new(),
             ignore_rustdoc: false,
             bpaf_path: None,
+            nest: None,
         }
     }
 }
@@ -92,10 +123,11 @@ impl Default for TopInfo {
 const TOP_NEED_OPTIONS: &str =
     "You need to add `options` annotation at the beginning to use this one";
 
-const TOP_NEED_COMMAND: &str =
-    "You need to add `command` annotation at the beginning to use this one";
+const TOP_NEED_NEST_OR_COMMAND: &str = "Use either `command` or `nest` before this attribute";
 
 const TOP_NEED_PARSER: &str = "This annotation can't be used with either `options` or `command`";
+
+const NEST_MUST_BE_FIRST: &str = "This annotation must be first: try `#[bpaf(nest, ...`";
 
 fn with_options(
     kw: &Ident,
@@ -108,20 +140,6 @@ fn with_options(
             Ok(())
         }
         None => Err(Error::new_spanned(kw, TOP_NEED_OPTIONS)),
-    }
-}
-
-fn with_command(
-    kw: &Ident,
-    cfg: Option<&mut CommandCfg>,
-    f: impl FnOnce(&mut CommandCfg),
-) -> Result<()> {
-    match cfg {
-        Some(cfg) => {
-            f(cfg);
-            Ok(())
-        }
-        None => Err(Error::new_spanned(kw, TOP_NEED_COMMAND)),
     }
 }
 
@@ -152,6 +170,7 @@ impl Parse for TopInfo {
         let mut attrs = Vec::new();
         let mut first = true;
         let mut bpaf_path = None;
+        let mut nest: Option<NestCfgRaw> = None;
         loop {
             let kw = input.parse::<Ident>()?;
 
@@ -202,11 +221,21 @@ impl Parse for TopInfo {
                     ));
                 }
             } else if kw == "short" {
-                let short = parse_arg(input)?;
-                with_command(&kw, command.as_mut(), |cfg| cfg.short.push(short))?;
+                if let Some(ref mut cfg) = nest {
+                    cfg.short.push(parse_opt_arg(input)?);
+                } else if let Some(cfg) = command.as_mut() {
+                    cfg.short.push(parse_arg(input)?);
+                } else {
+                    return Err(Error::new_spanned(kw, TOP_NEED_NEST_OR_COMMAND));
+                }
             } else if kw == "long" {
-                let long = parse_arg(input)?;
-                with_command(&kw, command.as_mut(), |cfg| cfg.long.push(long))?;
+                if let Some(ref mut cfg) = nest {
+                    cfg.long.push(parse_opt_arg(input)?);
+                } else if let Some(cfg) = command.as_mut() {
+                    cfg.long.push(parse_arg(input)?);
+                } else {
+                    return Err(Error::new_spanned(kw, TOP_NEED_NEST_OR_COMMAND));
+                }
             } else if kw == "header" {
                 let header = parse_arg(input)?;
                 with_options(&kw, options.as_mut(), |cfg| cfg.header = Some(header))?;
@@ -227,8 +256,17 @@ impl Parse for TopInfo {
                 let descr = parse_arg(input)?;
                 with_options(&kw, options.as_mut(), |opt| opt.descr = Some(descr))?;
             } else if kw == "help" {
-                let help = parse_arg(input)?;
-                with_command(&kw, command.as_mut(), |cfg| cfg.help = Some(help))?;
+                if let Some(ref mut cfg) = nest {
+                    cfg.help = Some(parse_arg(input)?);
+                } else if let Some(cfg) = command.as_mut() {
+                    cfg.help = Some(parse_arg(input)?);
+                } else {
+                    return Err(Error::new_spanned(kw, TOP_NEED_NEST_OR_COMMAND));
+                }
+            } else if first && kw == "nest" {
+                nest = Some(NestCfgRaw::default());
+            } else if kw == "nest" {
+                return Err(Error::new_spanned(kw, NEST_MUST_BE_FIRST));
             } else if kw == "path" {
                 bpaf_path.replace(parse_arg::<syn::Path>(input)?);
             } else if kw == "max_width" {
@@ -270,6 +308,7 @@ impl Parse for TopInfo {
             mode,
             attrs,
             bpaf_path,
+            nest,
         })
     }
 }
@@ -278,6 +317,7 @@ impl Parse for TopInfo {
 pub(crate) struct Ed {
     pub(crate) skip: bool,
     pub(crate) attrs: Vec<EAttr>,
+    pub(crate) nest: Option<NestCfgRaw>,
 }
 
 pub(crate) enum VariantMode {
@@ -297,6 +337,7 @@ impl Parse for Ed {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut attrs = Vec::new();
         let mut skip = false;
+        let mut nest = None;
 
         let mode = {
             let first = input.fork().parse::<Ident>()?;
@@ -331,12 +372,14 @@ impl Parse for Ed {
                         "\"nest\" can't be used together with \"command\"",
                     ));
                 }
-                attrs.push(EAttr::Nest);
+                nest = Some(NestCfgRaw::default());
             } else if kw == "short" {
                 if matches!(mode, VariantMode::Command) {
                     attrs.push(EAttr::CommandShort(parse_arg(input)?));
                 } else if matches!(mode, VariantMode::Nest) {
-                    attrs.push(EAttr::NestShort(parse_opt_arg(input)?));
+                    if let Some(ref mut cfg) = nest {
+                        cfg.short.push(parse_opt_arg(input)?);
+                    }
                 } else {
                     attrs.push(EAttr::UnitShort(parse_opt_arg(input)?));
                 }
@@ -346,13 +389,17 @@ impl Parse for Ed {
                 if matches!(mode, VariantMode::Command) {
                     attrs.push(EAttr::CommandLong(parse_arg(input)?));
                 } else if matches!(mode, VariantMode::Nest) {
-                    attrs.push(EAttr::NestLong(parse_opt_arg(input)?));
+                    if let Some(ref mut cfg) = nest {
+                        cfg.long.push(parse_opt_arg(input)?);
+                    }
                 } else {
                     attrs.push(EAttr::UnitLong(parse_opt_arg(input)?));
                 }
             } else if kw == "help" {
                 if matches!(mode, VariantMode::Nest) {
-                    attrs.push(EAttr::NestHelp(parse_arg(input)?));
+                    if let Some(ref mut cfg) = nest {
+                        cfg.help = Some(parse_arg(input)?);
+                    }
                 } else {
                     return Err(Error::new_spanned(
                         kw,
@@ -396,7 +443,7 @@ impl Parse for Ed {
             }
         }
 
-        Ok(Ed { skip, attrs })
+        Ok(Ed { skip, attrs, nest })
     }
 }
 
@@ -418,11 +465,6 @@ pub(crate) enum EAttr {
     Usage(Box<Expr>),
     Env(Box<Expr>),
     ToOptions,
-
-    Nest,
-    NestShort(Option<LitChar>),
-    NestLong(Option<LitStr>),
-    NestHelp(Help),
 }
 
 impl ToTokens for EAttr {
@@ -441,13 +483,7 @@ impl ToTokens for EAttr {
             Self::Hide => quote!(hide()),
             Self::FallbackUsage => quote!(fallback_to_usage()),
 
-            Self::UnnamedCommand
-            | Self::UnitShort(_)
-            | Self::UnitLong(_)
-            | Self::Nest
-            | Self::NestShort(_)
-            | Self::NestLong(_)
-            | Self::NestHelp(_) => unreachable!(),
+            Self::UnnamedCommand | Self::UnitShort(_) | Self::UnitLong(_) => unreachable!(),
         }
         .to_tokens(tokens);
     }

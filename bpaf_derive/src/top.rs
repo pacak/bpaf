@@ -43,11 +43,11 @@ pub(crate) struct Top {
     bpaf_path: Option<syn::Path>,
 }
 
-fn ident_to_long(ident: &Ident) -> LitStr {
+pub(crate) fn ident_to_long(ident: &Ident) -> LitStr {
     LitStr::new(&to_kebab_case(&ident.to_string()), ident.span())
 }
 
-fn ident_to_short(ident: &Ident) -> LitChar {
+pub(crate) fn ident_to_short(ident: &Ident) -> LitChar {
     LitChar::new(
         to_kebab_case(&ident.to_string()).chars().next().unwrap(),
         ident.span(),
@@ -67,6 +67,7 @@ impl Parse for Top {
             ignore_rustdoc,
             adjacent,
             bpaf_path,
+            ..
         } = top_decor.unwrap_or_default();
 
         if ignore_rustdoc {
@@ -458,7 +459,11 @@ impl ParsedEnumBranch {
         branch.enum_name = Some(EnumPrefix(enum_name.clone()));
 
         let (enum_decor, mut help) = parse_bpaf_doc_attrs::<Ed>(&attrs)?;
-        let Ed { attrs: ea, skip } = enum_decor.unwrap_or_default();
+        let Ed {
+            attrs: ea,
+            skip,
+            nest: nest_raw,
+        } = enum_decor.unwrap_or_default();
         if skip {
             return Ok(None);
         }
@@ -466,7 +471,6 @@ impl ParsedEnumBranch {
         let mut attrs = Vec::with_capacity(ea.len());
         let mut has_options = None;
         let mut fallback_usage = false;
-        let mut nest = None;
         for attr in ea {
             match attr {
                 EAttr::NamedCommand(_) => {
@@ -511,33 +515,6 @@ impl ParsedEnumBranch {
                 }
                 EAttr::FallbackUsage => fallback_usage = true,
                 EAttr::ToOptions => unreachable!(),
-
-                EAttr::Nest => {
-                    nest = Some(NestCfg::default());
-                    if let FieldSet::Unit(_, _, _) = branch.fields {
-                        let ident = &branch.ident;
-                        let enum_name = &branch.enum_name;
-                        branch.fields =
-                            FieldSet::Pure(parse_quote!(::bpaf::pure(#enum_name #ident)));
-                    }
-                }
-                EAttr::NestShort(n) => {
-                    if let Some(ref mut cfg) = nest {
-                        cfg.short
-                            .push(n.unwrap_or_else(|| ident_to_short(&branch.ident)));
-                    }
-                }
-                EAttr::NestLong(n) => {
-                    if let Some(ref mut cfg) = nest {
-                        cfg.long
-                            .push(n.unwrap_or_else(|| ident_to_long(&branch.ident)));
-                    }
-                }
-                EAttr::NestHelp(h) => {
-                    if let Some(ref mut cfg) = nest {
-                        cfg.help = Some(h);
-                    }
-                }
             }
         }
 
@@ -551,14 +528,13 @@ impl ParsedEnumBranch {
             }
         }
 
-        if let Some(ref mut nest) = nest {
-            if nest.long.is_empty() && nest.short.is_empty() {
-                nest.long.push(ident_to_long(&branch.ident));
-            }
-            if let Some(h) = help
-                && nest.help.is_none()
-            {
-                nest.help = Some(h);
+        let nest = nest_raw.map(|raw| raw.into_cfg(&branch.ident, &mut help));
+
+        if nest.is_some() {
+            if let FieldSet::Unit(_, _, _) = branch.fields {
+                let ident = &branch.ident;
+                let enum_name = &branch.enum_name;
+                branch.fields = FieldSet::Pure(parse_quote!(::bpaf::pure(#enum_name #ident)));
             }
         } else {
             branch.set_inplicit_name();
