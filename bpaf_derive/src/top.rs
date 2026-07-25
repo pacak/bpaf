@@ -41,6 +41,9 @@ pub(crate) struct Top {
     adjacent: bool,
     attrs: Vec<PostDecor>,
     bpaf_path: Option<syn::Path>,
+
+    /// Nest configuration
+    nest: Option<NestCfg>,
 }
 
 pub(crate) fn ident_to_long(ident: &Ident) -> LitStr {
@@ -67,7 +70,7 @@ impl Parse for Top {
             ignore_rustdoc,
             adjacent,
             bpaf_path,
-            ..
+            nest,
         } = top_decor.unwrap_or_default();
 
         if ignore_rustdoc {
@@ -87,20 +90,31 @@ impl Parse for Top {
             }
         }
 
-        if let Some(help) = help.take() {
-            match &mut mode {
-                Mode::Command {
-                    command: _,
-                    options,
-                } => {
-                    split_options_help(help, options);
-                }
-                Mode::Options { options } => {
-                    split_options_help(help, options);
-                }
-                Mode::Parser { parser } => {
-                    if parser.group_help.is_none() {
-                        parser.group_help = Some(help);
+        let nest = nest.map(|raw| raw.into_cfg(&ty, &mut help));
+        if let Body::Single(ref mut branch) = body
+            && nest.is_some()
+        {
+            if let FieldSet::Unit(_, _, _) = branch.fields {
+                let ident = branch.ident.clone();
+                branch.fields = FieldSet::Pure(parse_quote!(::bpaf::pure(#ident)));
+            }
+        }
+        if nest.is_none() {
+            if let Some(help) = help.take() {
+                match &mut mode {
+                    Mode::Command {
+                        command: _,
+                        options,
+                    } => {
+                        split_options_help(help, options);
+                    }
+                    Mode::Options { options } => {
+                        split_options_help(help, options);
+                    }
+                    Mode::Parser { parser } => {
+                        if parser.group_help.is_none() {
+                            parser.group_help = Some(help);
+                        }
                     }
                 }
             }
@@ -118,6 +132,7 @@ impl Parse for Top {
             boxed,
             adjacent,
             bpaf_path,
+            nest,
         })
     }
 }
@@ -183,6 +198,7 @@ impl ToTokens for Top {
             boxed,
             adjacent,
             bpaf_path,
+            nest,
         } = self;
         let boxed = if *boxed { quote!(.boxed()) } else { quote!() };
         let adjacent = if *adjacent {
@@ -302,16 +318,42 @@ impl ToTokens for Top {
             Mode::Parser { parser } => {
                 let ParserCfg { group_help } = &parser;
                 let group_help = group_help.as_ref().map(|v| quote!(.group_help(#v)));
-                quote! {
-                    #[doc(hidden)]
-                    #vis fn #generate() -> impl ::bpaf::Parser<Output = #ty> {
-                        #[allow(unused_imports)]
-                        use ::bpaf::Parser;
-                        #body
-                        #adjacent
-                        #group_help
-                        #(.#attrs)*
-                        #boxed
+                if let Some(nest) = nest {
+                    let names: Vec<StrictName> = nest
+                        .short
+                        .iter()
+                        .map(|c| StrictName::Short { name: c.clone() })
+                        .chain(
+                            nest.long
+                                .iter()
+                                .map(|s| StrictName::Long { name: s.clone() }),
+                        )
+                        .collect();
+                    let help = nest.help.iter();
+                    quote! {
+                        #[doc(hidden)]
+                        #vis fn #generate() -> impl ::bpaf::Parser<Output = #ty> {
+                            #[allow(unused_imports)]
+                            use ::bpaf::Parser;
+                            ::bpaf:: #( #names .)* #(help(#help).)* nest(#body)
+                            #group_help
+                            #adjacent
+                            #(.#attrs)*
+                            #boxed
+                        }
+                    }
+                } else {
+                    quote! {
+                        #[doc(hidden)]
+                        #vis fn #generate() -> impl ::bpaf::Parser<Output = #ty> {
+                            #[allow(unused_imports)]
+                            use ::bpaf::Parser;
+                            #body
+                            #group_help
+                            #adjacent
+                            #(.#attrs)*
+                            #boxed
+                        }
                     }
                 }
             }
