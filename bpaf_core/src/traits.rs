@@ -127,7 +127,7 @@ pub trait Parser {
         Self: Sized + 'static,
     {
         Many {
-            inner: self.into_rc(),
+            inner: self.into_box(),
         }
     }
 
@@ -136,7 +136,7 @@ pub trait Parser {
         Self: Sized + 'static,
     {
         Collect {
-            inner: self.into_rc(),
+            inner: self.into_box(),
             ctx: PhantomData,
             min: 0,
             max: u32::MAX,
@@ -148,7 +148,7 @@ pub trait Parser {
         Self: Sized + 'static,
     {
         Many1 {
-            inner: self.into_rc(),
+            inner: self.into_box(),
             message,
         }
     }
@@ -158,7 +158,7 @@ pub trait Parser {
         Self: Sized + 'static,
     {
         Count {
-            inner: self.into_rc(),
+            inner: self.into_box(),
         }
     }
 
@@ -167,7 +167,7 @@ pub trait Parser {
         Self: Sized + 'static,
     {
         Last {
-            inner: self.into_rc(),
+            inner: self.into_box(),
         }
     }
 
@@ -176,7 +176,7 @@ pub trait Parser {
         Self: Sized + 'static,
     {
         OptionParser {
-            inner: self.into_rc(),
+            inner: self.into_box(),
             info: Default::default(),
         }
     }
@@ -296,7 +296,7 @@ pub trait Parser {
         Self: Sized + 'static,
     {
         crate::api::composite::Sum {
-            items: vec![self.into_rc(), other.into_rc()],
+            items: vec![self.into_box(), other.into_box()],
         }
     }
 

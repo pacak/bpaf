@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub struct Count<T> {
-    pub(crate) inner: RcParser<T>,
+    pub(crate) inner: BoxParser<T>,
 }
 
 impl<T: 'static> Parser for Count<T> {
@@ -44,7 +44,7 @@ impl<T: 'static> Parser for Count<T> {
 }
 
 pub struct Last<T> {
-    pub(crate) inner: RcParser<T>,
+    pub(crate) inner: BoxParser<T>,
 }
 
 impl<T: 'static> Parser for Last<T> {
@@ -80,7 +80,7 @@ impl<T: 'static> Parser for Last<T> {
 }
 
 pub struct Collect<C, T> {
-    pub(crate) inner: RcParser<T>,
+    pub(crate) inner: BoxParser<T>,
     pub(crate) ctx: PhantomData<C>,
     pub(crate) min: u32,
     pub(crate) max: u32,
@@ -128,7 +128,7 @@ impl<C, T> Collect<C, T> {
 }
 
 pub struct Many<T> {
-    pub(crate) inner: RcParser<T>,
+    pub(crate) inner: BoxParser<T>,
 }
 
 impl<T: 'static> Parser for Many<T> {
@@ -190,7 +190,7 @@ async fn parse_many<'p, T: 'static>(
 }
 
 pub struct Many1<T> {
-    pub(crate) inner: RcParser<T>,
+    pub(crate) inner: BoxParser<T>,
     pub(crate) message: &'static str,
 }
 impl<T: 'static> Parser for Many1<T> {

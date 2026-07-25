@@ -43,7 +43,7 @@ macro_rules! prepare {
 
     // All the logic for sum parser sits inside of Sum datatype
     ([alt] [$($f:ident)+]) => {
-        $crate::__private::Sum{ items: ::std::vec![ $( $crate::Parser::into_rc($f) ),+] }
+        $crate::__private::Sum{ items: ::std::vec![ $( $crate::Parser::into_box($f) ),+] }
     };
 
 
