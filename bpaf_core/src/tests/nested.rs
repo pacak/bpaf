@@ -113,3 +113,38 @@ Available options:
     let r = parser.run_inner("--check").unwrap();
     assert_eq!(r, Op::Check);
 }
+
+#[test]
+fn nested_help_callback() {
+    use crate::custom_help::{CUSTOM, END, H, T};
+
+    let key = positional::<String>("KEY").help("Name of an option to set");
+    let value = positional::<String>("VAL").help("Value to set");
+    let n = long("set")
+        .short('s')
+        .help("help for nest")
+        .nest((key, value))
+        .help_callback(|items| {
+            let nested = items.nested().unwrap();
+            let usage = nested.usage();
+            let inner = nested.items();
+            format!("{CUSTOM}{H}Nested options: {usage}{T}\n{inner}{END}")
+        });
+    let l = short('l').long("long").help("with some help").switch();
+    let parser = construct!(l, n).to_options();
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: app [-l] -s {KEY VAL}
+
+Nested options: -s {KEY VAL}
+    KEY         Name of an option to set
+    VAL         Value to set
+
+Available options:
+    -l, --long  with some help
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
