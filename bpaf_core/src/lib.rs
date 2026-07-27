@@ -10,6 +10,7 @@ mod consumers;
 mod core_consumers;
 mod ctx;
 mod custom_help;
+pub mod document;
 mod error;
 pub mod help;
 mod help_cmd;

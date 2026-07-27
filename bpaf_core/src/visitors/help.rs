@@ -26,7 +26,7 @@ const M: &str = Style::Metavar.ansi();
 
 use super::ShortLong;
 use crate::{
-    Flag, Item, Nest, VKind, Visited,
+    BoxParser, Flag, Item, Nest, VKind, Visited,
     console_writer::{MAX_TAB, Style, Styled, char_width},
     custom_help::Block,
     miniansi::Frag,
@@ -197,6 +197,43 @@ pub enum Place {
     Header,
     #[default]
     Footer,
+}
+
+/// Collected help sections ready for rendering into different formats.
+#[derive(Debug, Clone)]
+pub(crate) struct HelpSections {
+    pub(crate) named: String,
+    pub(crate) pos: String,
+    pub(crate) commands: String,
+    pub(crate) sections: String,
+    pub(crate) global: String,
+    pub(crate) usage: String,
+    pub(crate) descr: String,
+    pub(crate) header: String,
+    pub(crate) footer: String,
+}
+
+impl HelpSections {
+    pub(crate) fn collect(
+        parser: &dyn Visited,
+        help: BoxParser<crate::help::Help>,
+        path: &str,
+    ) -> Self {
+        let mut h = Help::new(path, crate::Help::Full);
+        parser.vi(&mut h);
+        help.vi(&mut h);
+        HelpSections {
+            named: h.named,
+            pos: h.pos,
+            commands: h.commands,
+            sections: h.sections,
+            global: h.global,
+            usage: h.usage,
+            descr: h.descr,
+            header: h.header,
+            footer: h.footer_buf,
+        }
+    }
 }
 
 #[cfg_attr(test, derive(Eq, PartialEq))]
@@ -447,7 +484,7 @@ impl Help<'_> {
         };
         match meta {
             None => self.write_buf(format_args!("{sl:#}")),
-            Some(meta) => self.write_buf(format_args!("{sl:#}={meta}")),
+            Some(meta) => self.write_buf(format_args!("{sl:#}={M}{meta}{T}")),
         }
         self.track_tab(sl.col_width() + meta.map_or(0, |m| 1 + m.width()));
         self.help(named.help);
