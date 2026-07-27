@@ -311,9 +311,26 @@ pub struct NestedItem<'a> {
     pub(crate) inner: &'a dyn Visited,
 }
 
+impl<'a> Visited for NestedItem<'a> {
+    fn vi<'c>(&'c self, v: &mut dyn Visitor<'c>) {
+        v.item(Item::Nested {
+            outer: self.outer,
+            inner: self.inner,
+        });
+    }
+}
+
 impl<'a> NestedItem<'a> {
     pub fn items(&self) -> HelpItems<'a> {
         HelpItems(collect_help_items(self.inner))
+    }
+
+    pub fn usage(&self) -> String {
+        let mut u = crate::visitors::usage::Usage::default();
+        self.vi(&mut u);
+        let mut result = String::new();
+        u.render_to(&mut result);
+        result
     }
 }
 
