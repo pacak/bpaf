@@ -271,7 +271,7 @@ header
 
 Available options:
     -p, --parser=ARG  help
-                      [env:BPAF_VARIABLE is not set]
+                      Uses environment variable BPAF_VARIABLE
     -V, --version     Prints version information
     -h, --help        Prints help information
 
@@ -660,9 +660,9 @@ Usage: app [--fonts=DIR] [--system-fonts]
 
 Available options:
         --fonts=DIR     Load fonts from this directory
-                        [env:OIKOS_FONTS is not set]
+                        Uses environment variable OIKOS_FONTS
         --system-fonts  Search for additional fonts in system directories
-                        [env:OIKOS_SYSTEM_FONTS is not set]
+                        Uses environment variable OIKOS_SYSTEM_FONTS
     -h, --help          Prints help information
 ";
     assert_eq!(r, expected);
@@ -1264,9 +1264,9 @@ Usage: app [-a] -c=B --bbbbb=CCC
 Available options:
     -a               help for a
     -c=B             help for b
-                     [env:BbBbB is not set]
+                     Uses environment variable BbBbB
         --bbbbb=CCC  help for ccc
-                     [env:ccccCCccc is not set]
+                     Uses environment variable ccccCCccc
     -h, --help       Prints help information
 ";
 
