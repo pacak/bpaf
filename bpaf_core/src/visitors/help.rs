@@ -411,14 +411,9 @@ impl Help<'_> {
         }
     }
 
-    fn env_status(&mut self, env: &str) {
-        let status = if std::env::var_os(env).is_some() {
-            "is set"
-        } else {
-            "is not set"
-        };
-        self.mut_buf()
-            .push_str(&format!("\t[env:{env} {status}]\n"));
+    fn write_env(&mut self, env: &str) {
+        use std::fmt::Write as _;
+        _ = writeln!(self.mut_buf(), "\tUses environment variable {L}{env}{T}");
     }
 
     fn write_buf(&mut self, args: std::fmt::Arguments<'_>) {
@@ -437,7 +432,7 @@ impl Help<'_> {
         self.track_tab(sl.col_width() + meta.map_or(0, |m| 1 + m.width()));
         self.help(named.help);
         if let Some(env) = named.env.first() {
-            self.env_status(env);
+            self.write_env(env);
         }
     }
 
