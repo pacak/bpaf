@@ -41,7 +41,7 @@ Global options:
 }
 
 #[test]
-fn help_map_identity() {
+fn help_map_identity_iter() {
     let a = short('a')
         .help("A flag")
         .req_flag(())
@@ -52,6 +52,24 @@ fn help_map_identity() {
             }
             out
         });
+    let parser = a.to_options();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app -a
+
+Available options:
+    -a          A flag
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn help_map_identity_help_items() {
+    let a = short('a')
+        .help("A flag")
+        .req_flag(())
+        .help_callback(|items| format!("{items}"));
     let parser = a.to_options();
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
@@ -100,7 +118,7 @@ fn help_map_custom_prefix() {
         .help_callback(|items| {
             let mut out = String::new();
             _ = write!(&mut out, "{CUSTOM}{H}Custom section{T}");
-            for item in &items {
+            for item in items {
                 writeln!(&mut out, "{item}").unwrap();
             }
             _ = write!(&mut out, "{END}");
@@ -131,7 +149,7 @@ fn help_map_multiname() {
     let b = short('b').help("Regular flag").switch();
     let parser = construct!(a, b).help_callback(|items| {
         let mut out = String::new();
-        for item in &items {
+        for item in items {
             _ = match item {
                 HelpItem::Flag(flag) => {
                     _ = write!(&mut out, "{NAMED}    ");

@@ -10,7 +10,7 @@ use crate::{
     },
     completions::CompHelp,
     error::ParseFailure,
-    help::custom::{HelpCallback, HelpItem, HelpLiteral},
+    help::custom::{HelpCallback, HelpItems, HelpLiteral},
     info::Info,
     repeat::{Collect, Count, Last, Many, Many1},
     vault::Vault,
@@ -45,7 +45,7 @@ pub trait Parser {
     fn help_callback<F>(self, map: F) -> HelpCallback<Self, F>
     where
         Self: Sized,
-        F: Fn(Vec<HelpItem>) -> String,
+        F: Fn(HelpItems) -> String,
     {
         HelpCallback {
             inner: self,
