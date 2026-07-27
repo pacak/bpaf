@@ -158,7 +158,7 @@ fn fallback_to_custom_usage() {
     let parser = short('p')
         .req_flag(1)
         .to_options()
-        .usage("Usage: hey [-p]")
+        .usage("hey [-p]")
         .fallback_to_usage();
     let expected =
         "Usage: hey [-p]\n\nAvailable options:\n    -p\n    -h, --help  Prints help information\n";
@@ -212,7 +212,7 @@ Available options:
 #[test]
 fn custom_usage() {
     let a = short('a').long("long").argument::<String>("ARG");
-    let parser = a.to_options().usage("Usage: -a=ARG or --long=ARG");
+    let parser = a.to_options().usage("-a=ARG or --long=ARG");
     let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected_help = "\
 Usage: -a=ARG or --long=ARG
@@ -255,7 +255,7 @@ fn decorations() {
         .header("header\n header")
         .footer("footer\n footer")
         .version("version")
-        .usage("Usage: app custom usage");
+        .usage("app custom usage");
 
     let r = p.run_inner("--help").unwrap_err().unwrap_stdout();
 

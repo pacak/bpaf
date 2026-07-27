@@ -42,7 +42,7 @@ impl<'a> Help<'a> {
         }
     }
 
-    pub(crate) fn render(mut self) -> Styled {
+    fn render(mut self) -> Styled {
         self.prepare_output();
         Styled {
             raw: self.output,
@@ -187,21 +187,23 @@ fn lit_name<'a>(names: &'a [crate::Lit<'a>]) -> Lit<'a> {
 #[cfg_attr(test, derive(Eq, PartialEq))]
 #[derive(Default, Debug, Clone, Copy)]
 pub enum Place {
-    #[default]
     Named,
     Pos,
     Command,
     Section,
-    Body,
     Global,
+    Descr,
+    Usage,
+    Header,
+    #[default]
+    Footer,
 }
 
 #[cfg_attr(test, derive(Eq, PartialEq))]
 #[derive(Debug, Default)]
-pub struct Help<'a> {
-    pub(crate) path: &'a str,
+struct Help<'a> {
+    path: &'a str,
     place: Place,
-    footer: Option<&'a str>,
     /// Nesting depth for Section/Nested contexts; place is only updated when depth == 0
     depth: usize,
     in_global: usize,
@@ -217,9 +219,13 @@ pub struct Help<'a> {
     /// Maximum seen tab slice (under the limit)
     max_tab: usize,
 
-    pub(crate) detailed: crate::Help,
+    detailed: crate::Help,
 
     output: String,
+    usage: String,
+    descr: String,
+    header: String,
+    footer_buf: String,
 }
 
 impl Help<'_> {
@@ -229,8 +235,11 @@ impl Help<'_> {
             Place::Pos => &self.pos,
             Place::Command => &self.commands,
             Place::Section => &self.sections,
-            Place::Body => &self.output,
             Place::Global => &self.global,
+            Place::Descr => &self.descr,
+            Place::Usage => &self.usage,
+            Place::Header => &self.header,
+            Place::Footer => &self.footer_buf,
         }
     }
 
@@ -240,8 +249,11 @@ impl Help<'_> {
             Place::Pos => &mut self.pos,
             Place::Command => &mut self.commands,
             Place::Section => &mut self.sections,
-            Place::Body => &mut self.output,
             Place::Global => &mut self.global,
+            Place::Descr => &mut self.descr,
+            Place::Usage => &mut self.usage,
+            Place::Header => &mut self.header,
+            Place::Footer => &mut self.footer_buf,
         }
     }
 }
@@ -254,25 +266,32 @@ impl<'a> Visitor<'a> for Help<'a> {
         match item {
             Item::OptionParser { info, inner } => {
                 if let Some(descr) = info.descr {
+                    self.place = Place::Descr;
                     self.copy_text(false, descr);
-                    self.output.push('\n');
                 }
+                self.place = Place::Usage;
                 if let Some(usage) = info.usage {
-                    self.output.push_str(usage);
+                    self.usage.push_str(usage);
                 } else {
-                    _ = write!(&mut self.output, "Usage: {} ", self.path);
+                    if !self.path.is_empty() {
+                        for seg in self.path.split(' ') {
+                            _ = write!(self.usage, "{L}{seg}{T} ");
+                        }
+                    }
                     let mut usage = crate::visitors::usage::Usage::default();
                     inner.vi(&mut usage);
-                    usage.render_to(&mut self.output);
+                    usage.render_to(&mut self.usage);
+                    self.usage.truncate(self.usage.trim_end().len());
                 }
-                self.output.push('\n');
-
                 if let Some(header) = info.header {
-                    self.output.push('\n');
+                    self.place = Place::Header;
                     self.copy_text(false, header);
                 }
-
-                self.footer = info.footer;
+                if let Some(footer) = info.footer {
+                    self.place = Place::Footer;
+                    self.copy_text(false, footer);
+                }
+                self.place = Place::Footer;
                 inner.vi(self);
             }
             Item::Flag { named } => self.write_named_item(named, None),
@@ -452,7 +471,6 @@ impl Help<'_> {
                     outer: Nest::Keyword(_),
                     ..
                 } => Place::Command,
-                Item::OptionParser { .. } => Place::Body,
                 _ => self.place,
             };
         }
@@ -504,11 +522,29 @@ impl Help<'_> {
 
     fn prepare_output(&mut self) {
         use std::fmt::Write as _;
+        if !self.descr.is_empty() {
+            self.output.push_str(&self.descr);
+            self.output.push('\n');
+        }
+
+        if !self.usage.is_empty() {
+            // with generated usage there won't be a '\n' at the end, but
+            // writing directly to section will add it.
+            let usage = self.usage.trim_end();
+            _ = writeln!(self.output, "Usage: {usage}");
+        }
+
+        if !self.header.is_empty() {
+            self.output.push('\n');
+            self.output.push_str(&self.header);
+        }
+
         if !self.pos.is_empty() {
             self.output.push('\n');
             _ = writeln!(&mut self.output, "{H}Available positional items:{T}");
             self.output.push_str(&self.pos);
         }
+
         if !self.sections.is_empty() {
             self.output.push('\n');
             self.output.push_str(&self.sections);
@@ -532,9 +568,9 @@ impl Help<'_> {
             self.output.push_str(&self.global);
         }
 
-        if let Some(footer) = self.footer {
+        if !self.footer_buf.is_empty() {
             self.output.push('\n');
-            self.output.push_str(footer);
+            self.output.push_str(&self.footer_buf);
         }
     }
 }
