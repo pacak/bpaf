@@ -22,6 +22,7 @@
 const T: &str = Style::Text.ansi();
 const L: &str = Style::Literal.ansi();
 const H: &str = Style::Header.ansi();
+const M: &str = Style::Metavar.ansi();
 
 use super::ShortLong;
 use crate::{
@@ -281,7 +282,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 help,
                 strict: _,
             } => {
-                self.write_buf(format_args!("    {meta}"));
+                self.write_buf(format_args!("    {M}{meta}{T}"));
                 self.track_tab(meta.width());
                 self.help(help);
             }
