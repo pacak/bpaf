@@ -111,6 +111,57 @@ impl std::fmt::Display for HelpItems<'_> {
     }
 }
 
+impl<'a> HelpItems<'a> {
+    pub fn flag(&self) -> Option<&FlagItem<'a>> {
+        match self.0.as_slice() {
+            [HelpItem::Flag(item)] => Some(item),
+            _ => None,
+        }
+    }
+
+    pub fn arg(&self) -> Option<&ArgItem<'a>> {
+        match self.0.as_slice() {
+            [HelpItem::Arg(item)] => Some(item),
+            _ => None,
+        }
+    }
+
+    pub fn positional(&self) -> Option<&PositionalItem<'a>> {
+        match self.0.as_slice() {
+            [HelpItem::Positional(item)] => Some(item),
+            _ => None,
+        }
+    }
+
+    pub fn command(&self) -> Option<&CommandItem<'a>> {
+        match self.0.as_slice() {
+            [HelpItem::Command(item)] => Some(item),
+            _ => None,
+        }
+    }
+
+    pub fn nested(&self) -> Option<&NestedItem<'a>> {
+        match self.0.as_slice() {
+            [HelpItem::Nested(item)] => Some(item),
+            _ => None,
+        }
+    }
+
+    pub fn section(&self) -> Option<&SectionItem<'a>> {
+        match self.0.as_slice() {
+            [HelpItem::Section(item)] => Some(item),
+            _ => None,
+        }
+    }
+
+    pub fn rendered(&self) -> Option<&str> {
+        match self.0.as_slice() {
+            [HelpItem::Rendered(text)] => Some(text.as_str()),
+            _ => None,
+        }
+    }
+}
+
 impl<'a> IntoIterator for HelpItems<'a> {
     type Item = HelpItem<'a>;
 
