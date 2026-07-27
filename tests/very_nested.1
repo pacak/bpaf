@@ -1,94 +1,84 @@
 .ie \n(.g .ds Aq \(aq
 .el .ds Aq '
-.TH simple 1 Aug\ 2022 Michael\ Baykov\ <manpacket@gmail.com> asdf
+.TH "app" "1" "\-" "\-" "\-"
 .PP
 .SH SYNOPSIS
 .nf
-\fBsimple\fP\fR \fP\fICOMMAND ...\fP\fR
-\fP\fBsimple\fP\fR \fP\fBlvl1\fP\fR \fP\fICOMMAND ...\fP\fR
-\fP\fBsimple\fP\fR \fP\fBlvl1\fP\fR \fP\fBlvl2\fP\fR \fP\fICOMMAND ...\fP\fR
-\fP\fBsimple\fP\fR \fP\fBlvl1\fP\fR \fP\fBlvl2\fP\fR \fP\fBlvl3\fP\fR \fP\fICOMMAND ...\fP\fR
-\fP\fBsimple\fP\fR \fP\fBlvl1\fP\fR \fP\fBlvl2\fP\fR \fP\fBlvl3\fP\fR \fP\fBlvl4\fP\fR \fP\fB\-k\fP\fR=\fP\fINAME\fP\fR
-\fP
+\fBapp\fR \fICOMMAND\fR ...
+\fBapp\fR \fBlvl1\fR \fICOMMAND\fR ...
+\fBapp\fR \fBlvl1\fR \fBlvl2\fR \fICOMMAND\fR ...
+\fBapp\fR \fBlvl1\fR \fBlvl2\fR \fBlvl3\fR \fICOMMAND\fR ...
+\fBapp\fR \fBlvl1\fR \fBlvl2\fR \fBlvl3\fR \fBlvl4\fR \fB\-k\fR=\fINAME\fR
 .fi
-.SH SIMPLE\ 
+.SH app\ 
 .SH SYNOPSIS
-\fBsimple\fP\fR \fP\fICOMMAND ...\fP
-.PP
+\fBapp\fR \fICOMMAND\fR ...
 .SS AVAILABLE\ OPTIONS:
 .TP
-\fB\-h\fP\fR, \fP\fB\-\-help\fP
-\fRPrints help information\fP
-.PP
+\fB\-h\fR, \fB\-\-help\fR
+Prints help information
 .PP
 .SS AVAILABLE\ COMMANDS:
 .TP
-\fBlvl1\fP
-\fRlvl 1 description\fP
+\fBlvl1\fR
+lvl 1 description
 .PP
-.SH SIMPLE\ LVL1\ 
+.SH app lvl1\ 
 .SH NAME
-\fRsimple \- \fP\fRlvl 1 description\fP
+\fRapp lvl1 \- \fPlvl 1 description
 .SH SYNOPSIS
-\fBsimple\fP\fR \fP\fBlvl1\fP\fR \fP\fICOMMAND ...\fP
-.PP
+\fBapp\fR \fBlvl1\fR \fICOMMAND\fR ...
 .SS AVAILABLE\ OPTIONS:
 .TP
-\fB\-h\fP\fR, \fP\fB\-\-help\fP
-\fRPrints help information\fP
-.PP
+\fB\-h\fR, \fB\-\-help\fR
+Prints help information
 .PP
 .SS AVAILABLE\ COMMANDS:
 .TP
-\fBlvl2\fP
-\fRlvl 2 description\fP
+\fBlvl2\fR
+lvl 2 description
 .PP
-.SH SIMPLE\ LVL1\ LVL2\ 
+.SH app lvl1 lvl2\ 
 .SH NAME
-\fRsimple \- \fP\fRlvl 2 description\fP
+\fRapp lvl1 lvl2 \- \fPlvl 2 description
 .SH SYNOPSIS
-\fBsimple\fP\fR \fP\fBlvl1\fP\fR \fP\fBlvl2\fP\fR \fP\fICOMMAND ...\fP
-.PP
+\fBapp\fR \fBlvl1\fR \fBlvl2\fR \fICOMMAND\fR ...
 .SS AVAILABLE\ OPTIONS:
 .TP
-\fB\-h\fP\fR, \fP\fB\-\-help\fP
-\fRPrints help information\fP
-.PP
+\fB\-h\fR, \fB\-\-help\fR
+Prints help information
 .PP
 .SS AVAILABLE\ COMMANDS:
 .TP
-\fBlvl3\fP
-\fRlvl 3 description\fP
+\fBlvl3\fR
+lvl 3 description
 .PP
-.SH SIMPLE\ LVL1\ LVL2\ LVL3\ 
+.SH app lvl1 lvl2 lvl3\ 
 .SH NAME
-\fRsimple \- \fP\fRlvl 3 description\fP
+\fRapp lvl1 lvl2 lvl3 \- \fPlvl 3 description
 .SH SYNOPSIS
-\fBsimple\fP\fR \fP\fBlvl1\fP\fR \fP\fBlvl2\fP\fR \fP\fBlvl3\fP\fR \fP\fICOMMAND ...\fP
-.PP
+\fBapp\fR \fBlvl1\fR \fBlvl2\fR \fBlvl3\fR \fICOMMAND\fR ...
 .SS AVAILABLE\ OPTIONS:
 .TP
-\fB\-h\fP\fR, \fP\fB\-\-help\fP
-\fRPrints help information\fP
-.PP
+\fB\-h\fR, \fB\-\-help\fR
+Prints help information
 .PP
 .SS AVAILABLE\ COMMANDS:
 .TP
-\fBlvl4\fP
-\fRlvl 4 description\fP
+\fBlvl4\fR
+lvl 4 description
 .PP
-.SH SIMPLE\ LVL1\ LVL2\ LVL3\ LVL4\ 
+.SH app lvl1 lvl2 lvl3 lvl4\ 
 .SH NAME
-\fRsimple \- \fP\fRlvl 4 description\fP
+\fRapp lvl1 lvl2 lvl3 lvl4 \- \fPlvl 4 description
 .SH SYNOPSIS
-\fBsimple\fP\fR \fP\fBlvl1\fP\fR \fP\fBlvl2\fP\fR \fP\fBlvl3\fP\fR \fP\fBlvl4\fP\fR \fP\fB\-k\fP\fR=\fP\fINAME\fP
-.PP
+\fBapp\fR \fBlvl1\fR \fBlvl2\fR \fBlvl3\fR \fBlvl4\fR \fB\-k\fR=\fINAME\fR
 .SS AVAILABLE\ OPTIONS:
 .TP
-\fB\-k\fP\fR=\fP\fINAME\fP
-\fRUnleash the Kraken\fP
+\fB\-k\fR=\fINAME\fR
+Unleash the Kraken
 .PP
 .TP
-\fB\-h\fP\fR, \fP\fB\-\-help\fP
-\fRPrints help information\fP
+\fB\-h\fR, \fB\-\-help\fR
+Prints help information
 .PP

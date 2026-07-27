@@ -183,7 +183,7 @@ fn with_group_help() {
     let c = short('c').help("option c").switch();
 
     let ab = construct!(a, b).help_callback(|map| {
-        use bpaf::custom_help::Section;
+        use bpaf::help::custom::Section;
         use std::fmt::Write as _;
         let mut out = String::new();
         _ = write!(&mut out, "{}", Section("Uses either of those [-a] [-b]"));

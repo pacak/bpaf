@@ -1,0 +1,112 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH "complex" "1" "Jul 2026" "pacak" "the very bing thing"
+.PP
+.SH SYNOPSIS
+.nf
+\fBcomplex\fR \fICOMMAND\fR ... \fICOMMAND\fR ... \fB\-m\fR {[\fB\-v\fR]} [\fB\-x\fR] \fB\-a\fR \fB\-b\fR [\fB\-\-timeout\fR=\fISEC\fR] \fB\-p\fR=\fIPAT\fR [\fB\-i\fR] \fIEXTRA\fR \fB\-\-config\fR=\fIFILE\fR \fICOMMAND\fR ... [\fB\-M\fR]
+\fBcomplex\fR \fBsubcommand\fR
+.fi
+.SH complex\ 
+.SH NAME
+\fRcomplex \- \fPComplex program, long words
+.SH SYNOPSIS
+\fBcomplex\fR \fICOMMAND\fR ... \fICOMMAND\fR ... \fB\-m\fR {[\fB\-v\fR]} [\fB\-x\fR] \fB\-a\fR \fB\-b\fR [\fB\-\-timeout\fR=\fISEC\fR] \fB\-p\fR=\fIPAT\fR [\fB\-i\fR] \fIEXTRA\fR \fB\-\-config\fR=\fIFILE\fR \fICOMMAND\fR ... [\fB\-M\fR]
+.PP
+Long words and multi paragraphs
+
+This parser exercises many bpaf features including custom sections, nested commands, and environment variables.
+.SS AVAILABLE\ POSITIONAL\ ITEMS:
+.TP
+\fIEXTRA\fR
+
+.PP
+.SS \fBCustom Section\fR\ 
+.TP
+\-x
+Custom flag rendered via literal
+.PP
+.SS \fBSearch options:\fR\ 
+.TP
+\fB\-p\fR=\fIPAT\fR
+Search pattern
+.PP
+.TP
+\fB\-i\fR
+Case insensitive
+.PP
+.SS AVAILABLE\ OPTIONS:
+.TP
+\fB\-m\fR, \fB\-\-mode\fR [\fB\-v\fR]
+Mode options
+.PP
+.TP
+\fB\-v\fR
+Verbose mode
+.PP
+.TP
+\fB\-a\fR
+Flag A
+.PP
+.TP
+\fB\-b\fR
+Flag B
+.PP
+.TP
+\fB\-\-timeout\fR=\fISEC\fR
+Timeout in seconds
+.br
+[default: 30]
+.PP
+.TP
+\fB\-\-config\fR=\fIFILE\fR
+Path to config file
+.br
+Uses environment variable \fBCONFIG_PATH\fR
+.PP
+.TP
+\fB\-M\fR
+line1
+.br
+line2
+.br
+
+.br
+line4
+.PP
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Prints help information
+.PP
+.SS AVAILABLE\ COMMANDS:
+.TP
+\fBaction\fR
+Perform an action
+.PP
+.TP
+\fBset\fR \fIKEY\fR \fIVAL\fR
+Set a key=value pair
+.PP
+.TP
+\fIKEY\fR
+Name of an option to set
+.PP
+.TP
+\fIVAL\fR
+Value to set
+.PP
+.TP
+\fBsubcommand\fR, \fBs\fR
+A subcommand with a short alias
+.PP
+Beware of edge cases!
+.SH complex subcommand\ 
+.SH NAME
+\fRcomplex subcommand \- \fPA subcommand with a short alias
+.SH SYNOPSIS
+\fBcomplex\fR \fBsubcommand\fR
+.SS AVAILABLE\ OPTIONS:
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Prints help information
+.PP
