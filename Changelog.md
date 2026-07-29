@@ -1,5 +1,8 @@
 # Change Log
 
+## bpaf [0.9.27], bpaf_derive [0.5.26] - 2026-07-29
+- improve error message if user passes an empty value to argument or positional
+
 ## bpaf [0.9.26], bpaf_derive [0.5.26] - 2026-05-13
 - Support struct level doc comments along with `adjacent` (#453)
 
