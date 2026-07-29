@@ -12,6 +12,7 @@ struct Options {
 }
 
 #[derive(Debug, Clone, Bpaf)]
+#[allow(dead_code)]
 enum Action {
     /// Add a new TODO item
     #[bpaf(command)]

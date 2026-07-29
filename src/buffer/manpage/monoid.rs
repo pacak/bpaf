@@ -83,7 +83,7 @@ impl<T> FreeMonoid<T> {
     }
 
     /// Iterate over annotated fragments
-    pub(crate) fn iter(&self) -> AnnotatedSlicesIter<T> {
+    pub(crate) fn iter(&self) -> AnnotatedSlicesIter<'_, T> {
         AnnotatedSlicesIter {
             current: 0,
             items: self,
