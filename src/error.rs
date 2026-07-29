@@ -371,7 +371,27 @@ impl Message {
                 if let Some(field) = textual_part(args, mix) {
                     doc.text(" ");
                     doc.token(Token::BlockStart(Block::TermRef));
-                    doc.invalid(&field);
+                    if field.is_empty() {
+                        let mut s = String::new();
+                        if let Some(ix) = mix {
+                            if ix > 0 {
+                                if let Some(arg) = args.items.get(ix - 1) {
+                                    use std::fmt::Write as _;
+                                    match arg {
+                                        Arg::Short(n, true, _) => _ = write!(&mut s, "-{n}="),
+                                        Arg::Short(n, false, _) => _ = write!(&mut s, "-{n} "),
+                                        Arg::Long(l, false, _) => _ = write!(&mut s, "--{l} "),
+                                        Arg::Long(l, true, _) => _ = write!(&mut s, "--{l}="),
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                        s.push_str(r#""""#);
+                        doc.invalid(&s);
+                    } else {
+                        doc.invalid(&field);
+                    }
                     doc.token(Token::BlockEnd(Block::TermRef));
                 }
                 doc.text(": ");

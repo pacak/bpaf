@@ -331,3 +331,33 @@ fn argument_missing_value_with_catch() {
     let r = parser.run_inner(&["--name"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "`--name` requires an argument `NAME`");
 }
+
+#[test]
+fn empty_input_fromstr_arg() {
+    let a = short('a').argument::<usize>("A");
+    let parser = a.to_options();
+
+    let r = parser.run_inner(&["-a", ""]).unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        r#"couldn't parse `-a ""`: cannot parse integer from empty string"#
+    );
+
+    let r = parser.run_inner(&["-a="]).unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        r#"couldn't parse `-a=""`: cannot parse integer from empty string"#
+    );
+}
+
+#[test]
+fn empty_input_fromstr_pos() {
+    let a = positional::<usize>("A");
+    let parser = a.to_options();
+
+    let r = parser.run_inner(&[""]).unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        r#"couldn't parse `""`: cannot parse integer from empty string"#
+    );
+}
