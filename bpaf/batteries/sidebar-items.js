@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["cargo_helper","get_usage","toggle_flag","verbose_and_quiet_by_number","verbose_by_slice"]};
