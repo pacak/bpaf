@@ -64,29 +64,32 @@ Available options:
 //     assert_eq!(r, (false, true));
 // }
 
-// currently such commands are not possible - it's not a literal. Need to make a new adapter for
-// that
+// flag like commands are not really a thing.
+// But you can get a top level variant :
 #[test]
 fn flag_like_commands() {
-    let a = short('a').req_flag(1).to_options().command("--add");
+    let a = long("add").nest(short('a').req_flag(1));
     let b = short('b').req_flag(2).to_options().command("remove");
-    let parser = construct!([a, b]).to_options();
+    let parser = a.or_else(b).to_options();
 
-    let r = parser.run_inner(&["--add", "-a"]).unwrap();
+    let r = parser.run_inner("--add -a").unwrap();
     assert_eq!(r, 1);
 
-    let r = parser.run_inner(&["remove", "-b"]).unwrap();
+    let r = parser.run_inner("remove -b").unwrap();
     assert_eq!(r, 2);
 
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-    let expected = "Usage: COMMAND ...\n\nAvailable options:\n    -h, --help  Prints help information\n\nAvailable commands:\n    --add\n    remove\n";
-    assert_eq!(r, expected);
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
-    let r = parser
-        .run_inner(&["--add", "--help"])
-        .unwrap_err()
-        .unwrap_stdout();
-    let expected =
-        "Usage: --add -a\n\nAvailable options:\n    -a\n    -h, --help  Prints help information\n";
+    let expected = "Usage: app (--add {-a} | COMMAND ...)
+
+Available options:
+        --add -a
+    -a
+    -h, --help  Prints help information
+
+Available commands:
+    remove
+";
+
     assert_eq!(r, expected);
 }
