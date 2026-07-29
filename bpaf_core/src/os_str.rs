@@ -107,9 +107,12 @@ where
         }
 
         match os.to_str() {
-            Some(s) => T::from_str(s).map_err(|e| Problem::Parse {
-                value: Some(s.to_owned()),
-                error: e.to_string(),
+            Some(s) => T::from_str(s).map_err(|e| {
+                let value = if s.is_empty() { r#""""# } else { s };
+                Problem::Parse {
+                    value: Some(value.to_owned()),
+                    error: e.to_string(),
+                }
             }),
             None => Err(not_utf8(os)),
         }
