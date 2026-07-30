@@ -26,6 +26,10 @@ impl TryFrom<u32> for Block {
             14 => Ok(Block::Start(Place::Command)),
             15 => Ok(Block::Start(Place::Section)),
             16 => Ok(Block::EndSection),
+            17 => Ok(Block::Start(Place::Descr)),
+            18 => Ok(Block::Start(Place::Usage)),
+            19 => Ok(Block::Start(Place::Header)),
+            20 => Ok(Block::Start(Place::Footer)),
             _ => Err(()),
         }
     }
@@ -36,6 +40,10 @@ pub const POS: &str = "\u{1B}[13m";
 pub const CMD: &str = "\u{1B}[14m";
 pub const CUSTOM: &str = "\u{1B}[15m";
 pub const END: &str = "\u{1B}[16m";
+pub const DESCR: &str = "\u{1B}[17m";
+pub const USAGE: &str = "\u{1B}[18m";
+pub const HEADER: &str = "\u{1B}[19m";
+pub const FOOTER: &str = "\u{1B}[20m";
 
 /// Wraps a parser and replaces its help output with a static string.
 pub struct HelpLiteral<P> {
