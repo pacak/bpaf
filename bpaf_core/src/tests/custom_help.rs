@@ -23,19 +23,79 @@ Available options:
 }
 
 #[test]
-fn transform_line() {
-    let a = short('a').switch().global();
-
-    let parser = a.to_options();
+fn custom_help_descr() {
+    let a = short('x')
+        .help("ignored")
+        .req_flag(())
+        .help_literal("\u{1B}[17mCustom description\n");
+    let parser = a.to_options().descr("Regular description");
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: app -a
+Regular description
+Custom description
+
+Usage: app -x
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn custom_help_header() {
+    let a = short('x')
+        .help("ignored")
+        .req_flag(())
+        .help_literal("\u{1B}[19mCustom header\n");
+    let parser = a.to_options().header("Regular header");
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app -x
+
+Regular header
+Custom header
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn custom_help_footer() {
+    let a = short('x')
+        .help("ignored")
+        .req_flag(())
+        .help_literal("\u{1B}[20mCustom footer\n");
+    let parser = a.to_options().footer("Regular footer");
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app -x
 
 Available options:
     -h, --help  Prints help information
 
-Global options:
-    -a
+Regular footer
+Custom footer
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn custom_help_usage() {
+    let a = short('x')
+        .help("ignored")
+        .req_flag(())
+        .help_literal("\u{1B}[18mCustom usage text");
+    let parser = a.to_options();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app -x
+Custom usage text
+
+Available options:
+    -h, --help  Prints help information
 ";
     assert_eq!(r, expected);
 }
@@ -300,6 +360,23 @@ Global section
 
 Available options:
     -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn markerless_literal_after_footer() {
+    let a = short('a').req_flag(()).help_literal("plain text");
+    let parser = a.to_options().footer("custom footer");
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app -a
+
+Available options:
+    -h, --help  Prints help information
+
+custom footer
+plain text
 ";
     assert_eq!(r, expected);
 }
