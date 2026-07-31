@@ -569,38 +569,27 @@ impl Help<'_> {
             self.output.push_str(&self.header);
         }
 
-        if !self.pos.is_empty() {
-            self.output.push('\n');
-            _ = writeln!(&mut self.output, "{H}Available positional items:{T}");
-            self.output.push_str(&self.pos);
-        }
-
+        add_heading(&mut self.output, "Available positional items:", &self.pos);
         if !self.sections.is_empty() {
             self.output.push('\n');
             self.output.push_str(&self.sections);
         }
-
-        if !self.named.is_empty() {
-            self.output.push('\n');
-            _ = writeln!(&mut self.output, "{H}Available options:{T}");
-            self.output.push_str(&self.named);
-        }
-
-        if !self.commands.is_empty() {
-            self.output.push('\n');
-            _ = writeln!(&mut self.output, "{H}Available commands:{T}");
-            self.output.push_str(&self.commands);
-        }
-
-        if !self.global.is_empty() {
-            self.output.push('\n');
-            _ = writeln!(&mut self.output, "{H}Global options:{T}");
-            self.output.push_str(&self.global);
-        }
+        add_heading(&mut self.output, "Available options:", &self.named);
+        add_heading(&mut self.output, "Available commands:", &self.commands);
+        add_heading(&mut self.output, "Global options:", &self.global);
 
         if !self.footer_buf.is_empty() {
             self.output.push('\n');
             self.output.push_str(&self.footer_buf);
         }
+    }
+}
+
+fn add_heading(output: &mut String, heading: &str, body: &str) {
+    use std::fmt::Write as _;
+    if !body.is_empty() {
+        output.push('\n');
+        _ = writeln!(output, "{H}{heading}{T}");
+        output.push_str(body);
     }
 }
