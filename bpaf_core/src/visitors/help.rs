@@ -5,19 +5,12 @@
 //!    Plus descr/header/footer.
 //! 2. convert it to final version with tabs expanded into spaces and colors applied
 //!
-//!
 //! Text is separated with tab symbols into 3 virtual columns, 2 tabs.
 //! 1st column - description and header text. Can grow up to MAX_WIDTH, obeys newline separation
 //! 2nd column - flags with metavars. on rows with them 1st column must be empty (insert an \n if
 //! it isn't) and contents are padded with 4 spaces, it's width, as long as it is under MAX_TAB
 //! sets the tabstop, does not obey newline separation rules
 //! 3rd column - starts after the tabstop
-
-//! Second pass renders text to ANSI. All it needs to do is to
-//! 1. expand tabs into spaces
-//! 2. split
-//! - for ANSI it expands tabs and applies
-//! - for roff/
 
 const T: &str = Style::Text.ansi();
 const L: &str = Style::Literal.ansi();
