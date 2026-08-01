@@ -27,6 +27,14 @@ impl Args {
         self.complete = Some(shell);
         self
     }
+
+    pub fn splice(
+        &mut self,
+        range: impl std::ops::RangeBounds<usize>,
+        replace_with: impl IntoIterator<Item = OsString>,
+    ) {
+        self.items.splice(range, replace_with);
+    }
 }
 
 impl Args {
