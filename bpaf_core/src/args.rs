@@ -2,7 +2,7 @@ use std::ffi::{OsStr, OsString};
 
 use crate::complete::Shell;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Args {
     pub(crate) app: String,
     pub(crate) items: Vec<OsString>,
