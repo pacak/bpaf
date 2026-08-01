@@ -1,4 +1,7 @@
-use crate::{Parser, any, complete, construct, long, positional, pure, short};
+use crate::{
+    Exit, OptionParser, Parser, any, complete, construct, error::ParseFailure, long, positional,
+    pure, short,
+};
 
 #[test]
 fn prefer_long_name() {
@@ -1807,7 +1810,6 @@ fn any_does_not_suppress_positional_echo() {
     let r = parser.run_inner(("", "xxx")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "xxx\n");
 }
-
 #[test]
 fn any_comp_help_applied_to_metavar() {
     let parser = any("N", |s: &str| s.parse::<i32>().ok())
@@ -1885,4 +1887,92 @@ fn any_inside_subcommand_with_completer() {
 
     let r = parser.run_inner(("cmd", "1")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "");
+}
+
+fn run_with_aliases<T: 'static>(
+    aliases: Vec<(&'static str, &'static str)>,
+    input: &[&str],
+    parser: OptionParser<T>,
+    complete: bool,
+) -> Result<T, ParseFailure> {
+    // this is where the expansion result will be written
+    #[allow(clippy::type_complexity)]
+    let expansion: std::rc::Rc<std::cell::Cell<Option<(Option<u32>, &'static str)>>> =
+        Default::default();
+    let ex = expansion.clone();
+
+    // alias expansion meat and potato.
+    // - `any` picks familiar keywords.
+    // - `offset` gets the position where the expansion should be inserted.
+    // - `global` makes it so it works with all the subcommands, but not the nested parsers
+    // - `then_exit` terminates the whole parser once alias expansion succeeds
+    // - `fallback` makes it so it works fine when there's no expansion
+    // - `hide` removes it from the help
+    let alias = any("alias", move |input: &str| {
+        aliases
+            .iter()
+            .find_map(|(k, v)| (*k == input).then_some(*v))
+    })
+    .offset()
+    .global()
+    .then_exit(move |r| {
+        ex.set(Some(r));
+        Exit::failure("alias expansion")
+    })
+    .fallback(())
+    .hide();
+
+    // parser runs as usual, .and_also runs concurrently with no result.
+    let parser = parser.and_also(alias);
+
+    let mut input = crate::args::Args::from(input);
+
+    if complete {
+        input = input.set_comp(complete::Shell::Test);
+    }
+    loop {
+        let r = parser.run_inner(input.clone());
+
+        if let Some((Some(offset), val)) = expansion.take() {
+            let offset = offset as usize;
+            input.splice(
+                offset..=offset,
+                val.split_whitespace().map(std::ffi::OsString::from),
+            );
+        } else {
+            break r;
+        }
+    }
+}
+
+#[test]
+fn alias_expansion() {
+    fn parser() -> OptionParser<(bool, bool, usize)> {
+        let a = long("build").short('b').switch();
+        let b = long("release").short('r').switch();
+        let d = short('d').long("dummy").req_flag(()).count();
+        (a, b, d).to_options()
+    }
+
+    // aliases to expand
+    let aliases = vec![
+        ("rel", "--build --release"),
+        ("dbg", "--build"),
+        ("rec", "rel"),
+    ];
+
+    let r = run_with_aliases(aliases.clone(), &["rel"], parser(), false).unwrap();
+    assert_eq!(r, (true, true, 0));
+
+    let r = run_with_aliases(aliases.clone(), &["rec"], parser(), false).unwrap();
+    assert_eq!(r, (true, true, 0));
+
+    let r = run_with_aliases(aliases.clone(), &["-d", "rec", "-d"], parser(), false).unwrap();
+    assert_eq!(r, (true, true, 2));
+
+    let r = run_with_aliases(aliases.clone(), &["-d", "rec", "--d"], parser(), true)
+        .unwrap_err()
+        .unwrap_stdout();
+
+    assert_eq!(r, "--dummy\n");
 }
