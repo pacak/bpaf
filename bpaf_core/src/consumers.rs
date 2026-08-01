@@ -580,9 +580,9 @@ impl<T> Positional<T> {
 }
 
 pub struct WithComplete<P, F, C> {
-    inner: P,
-    ctr: F,
-    ctx: PhantomData<C>,
+    pub(crate) inner: P,
+    pub(crate) ctr: F,
+    pub(crate) ctx: PhantomData<C>,
 }
 
 impl<P, F, C> Parser for WithComplete<P, F, C>

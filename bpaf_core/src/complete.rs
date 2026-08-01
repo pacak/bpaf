@@ -13,7 +13,7 @@ use std::{collections::BTreeMap, ffi::OsStr, fmt::Write as _, str::FromStr};
 use crate::{
     Ctx, Error, Id, KillReason, Lit, Name, ParseFailure, Reason, Triggers,
     arg::{Adjacency, Arg},
-    error::CV,
+    error::{CV, CvKind},
     pecking::PeckingOrder,
 };
 
@@ -24,6 +24,11 @@ pub(crate) struct CompItem<'a> {
 
 impl From<CV> for CompReply {
     fn from(value: CV) -> Self {
+        // Values from check based parsers (`any()`) can only be expanded by an
+        // explicit `.complete()` call, echoing them as-is is meaningless
+        if matches!(value.kind, CvKind::ValueComplete) {
+            return CompReply::default();
+        }
         let ci = CompItem {
             value: value.prefix_value,
             help: value.help,
@@ -270,8 +275,8 @@ impl From<CompReply> for Error {
 pub(crate) fn complete_value<C, F: Completer<C>>(err: Error, completer: &F, ctx: &Ctx) -> Error {
     let Error::CompValue(CV {
         mut prefix_value,
-        has_value: true,
         prefix_len,
+        kind: CvKind::Value | CvKind::ValueComplete,
         help: _,
         shell,
         meta_only,

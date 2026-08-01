@@ -1,4 +1,4 @@
-use crate::{Parser, complete, construct, long, positional, pure, short};
+use crate::{Parser, any, complete, construct, long, positional, pure, short};
 
 #[test]
 fn prefer_long_name() {
@@ -59,6 +59,12 @@ fn comp_help_with_argument() {
 
     let r = parser.run_inner(("", "--o")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "--output\toutput file\n");
+
+    let r = parser
+        .run_inner(("--output", ""))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "FILE\toutput file\n");
 }
 
 #[test]
@@ -1754,4 +1760,129 @@ fn positionals_with_no_completions_are_not_duplicated() {
         r,
         "--arg\tAlhpa argument\nBETA\tBeta argument\n--help\tPrints help information\n"
     );
+}
+
+#[test]
+fn any_does_not_echo_metavar_with_input() {
+    let parser = any("N", |s: &str| s.parse::<i32>().ok()).to_options();
+
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "N\n--help\tPrints help information\n");
+
+    let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--help\tPrints help information\n");
+
+    let r = parser.run_inner(("", "1")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "");
+}
+
+#[test]
+fn any_complete_invokes_completer() {
+    let parser = any("N", |s: &str| s.parse::<i32>().ok())
+        .complete(complete_alpha)
+        .to_options();
+
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(
+        r,
+        "alpha\talpha description\n--help\tPrints help information\n"
+    );
+
+    let r = parser.run_inner(("", "a")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "alpha\talpha description\n");
+
+    let r = parser.run_inner(("", "x")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "");
+}
+
+#[test]
+fn any_does_not_suppress_positional_echo() {
+    let a = any("A", |s: &str| s.parse::<i32>().ok());
+    let d = positional::<String>("D");
+    let parser = construct!(a, d).to_options();
+
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "A\nD\n--help\tPrints help information\n");
+
+    let r = parser.run_inner(("", "xxx")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "xxx\n");
+}
+
+#[test]
+fn any_comp_help_applied_to_metavar() {
+    let parser = any("N", |s: &str| s.parse::<i32>().ok())
+        .help("big help")
+        .comp_help("small help")
+        .to_options();
+
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "N\tsmall help\n--help\tPrints help information\n");
+
+    let r = parser.run_inner(("", "1")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "");
+}
+
+#[test]
+fn any_help_shown_on_metavar() {
+    let parser = any("N", |s: &str| s.parse::<i32>().ok())
+        .help("A number")
+        .to_options();
+
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "N\tA number\n--help\tPrints help information\n");
+
+    let r = parser.run_inner(("", "1")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "");
+}
+
+#[test]
+fn positional_comp_help_applied_to_metavar() {
+    let parser = positional::<String>("FILE")
+        .help("File to use")
+        .comp_help("file")
+        .to_options();
+
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "FILE\tfile\n--help\tPrints help information\n");
+
+    let r = parser.run_inner(("", "x")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "x\n");
+}
+
+#[test]
+fn any_inside_subcommand() {
+    let parser = any("N", |s: &str| s.parse::<i32>().ok())
+        .to_options()
+        .command("cmd")
+        .to_options();
+
+    let r = parser.run_inner(("", "cmd")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "cmd\n");
+
+    let r = parser.run_inner(("cmd", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "N\n--help\tPrints help information\n");
+
+    let r = parser.run_inner(("cmd", "1")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "");
+}
+
+#[test]
+fn any_inside_subcommand_with_completer() {
+    let parser = any("N", |s: &str| s.parse::<i32>().ok())
+        .complete(complete_alpha)
+        .to_options()
+        .command("cmd")
+        .to_options();
+
+    let r = parser.run_inner(("cmd", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(
+        r,
+        "alpha\talpha description\n--help\tPrints help information\n"
+    );
+
+    let r = parser.run_inner(("cmd", "a")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "alpha\talpha description\n");
+
+    let r = parser.run_inner(("cmd", "1")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "");
 }

@@ -227,6 +227,25 @@ impl std::fmt::Display for Problem {
     }
 }
 
+/// What exactly the [`CV`] represents and how it can be converted into a reply
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) enum CvKind {
+    /// Completing a named item: a flag, literal, or argument name.
+    ///
+    /// `prefix_value` holds the name. Not expandable via a completer, but
+    /// can be echoed back as-is.
+    Item,
+    /// Completing a value of a positional or an argument.
+    ///
+    /// Can be echoed back as-is when no completer is attached.
+    Value,
+    /// Completing a value produced by a check based parser (`any()`).
+    ///
+    /// Echoing such a value as-is is meaningless, it can only be expanded
+    /// via an explicit `.complete()` call.
+    ValueComplete,
+}
+
 /// In flight completion reply
 /// Completion generates two types of replies:
 /// - items (name/meta/help)
@@ -243,14 +262,13 @@ pub(crate) struct CV {
     /// 2. adjacency (`=` or ``) - for completions only
     /// 3. value being completed - can be empty
     pub(crate) prefix_value: String,
-    /// should value completion be called when seen
-    pub(crate) has_value: bool,
     /// which portion of the prefix_value is prefix we keep. completion function gets
     /// `&prefix_value[prefix_len..]`
     pub(crate) prefix_len: u32,
+    pub(crate) kind: CvKind,
     /// `prefix_value` holds a metavar placeholder instead of real user input.
     ///
-    /// When the user hasn't typed anything yet (e.g. `command <TAB>` for a positional),
+    /// When the user hasn't typed anything yet (e.g. `command <TAB>`) for a positional,
     /// there's no real input to show or complete. Instead, the metavar (e.g. `"X"`) is
     /// stored in `prefix_value` so the fallback `From<CV> for CompReply` path can display
     /// it as a hint: `X\tpos help`. It's not a real value so it shouldn't be passed to
