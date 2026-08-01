@@ -8,7 +8,10 @@
 
 use crate::{
     Arg, CReq, Conflict, Error, Id, KillReason, Lit, Literal, Metavar, Named, Op, Problem, RawCtx,
-    Reason, Scope, TTarget, arg, complete::CompReply, error::CV, lex_os_arg, r#yield,
+    Reason, Scope, TTarget, arg,
+    complete::CompReply,
+    error::{CV, CvKind},
+    lex_os_arg, r#yield,
 };
 use std::{ffi::OsStr, rc::Rc};
 
@@ -88,9 +91,9 @@ impl<'p> RawCtx<'p> {
                         (*value).to_owned()
                     };
                     let cv = CV {
-                        has_value: true,
                         prefix_len: 0,
                         prefix_value,
+                        kind: CvKind::Value,
                         meta_only: value.is_empty(),
                         help: if value.is_empty() {
                             truncate_help(help)
@@ -109,6 +112,7 @@ impl<'p> RawCtx<'p> {
     pub(crate) async fn await_passing_check(
         &self,
         meta: Metavar,
+        help: Option<&'static str>,
         check: Rc<dyn Fn(&OsStr) -> bool>,
     ) -> Result<bool, Error> {
         {
@@ -142,9 +146,13 @@ impl<'p> RawCtx<'p> {
                 };
                 let cv = CV {
                     prefix_value,
-                    has_value: true,
                     prefix_len: 0,
-                    help: None,
+                    kind: if value.is_empty() {
+                        CvKind::Value
+                    } else {
+                        CvKind::ValueComplete
+                    },
+                    help: truncate_help(help),
                     shell: *shell,
                     meta_only: value.is_empty(),
                 };
@@ -180,8 +188,8 @@ impl<'p> RawCtx<'p> {
                 });
                 let cv = CV {
                     prefix_value: best.unwrap().to_string(),
-                    has_value: false,
                     prefix_len: 0,
+                    kind: CvKind::Item,
                     help: truncate_help(literal.help),
                     shell: *shell,
                     meta_only: false,
@@ -234,8 +242,12 @@ impl<'p> RawCtx<'p> {
                 let prefix_len = prefix_value.len() as u32 - value_len as u32;
                 let cv = CV {
                     prefix_value,
-                    has_value: value_adj.is_some(),
                     prefix_len,
+                    kind: if value_adj.is_some() {
+                        CvKind::Value
+                    } else {
+                        CvKind::Item
+                    },
                     help: truncate_help(named.help),
                     shell: *shell,
                     meta_only: false,
@@ -303,8 +315,8 @@ impl<'p> RawCtx<'p> {
                             };
                             let cv = CV {
                                 prefix_value,
-                                has_value: true,
                                 prefix_len: 0,
+                                kind: CvKind::Value,
                                 help: truncate_help(help),
                                 shell: shell.into(),
                                 meta_only: value.is_empty(),
@@ -354,8 +366,8 @@ impl<'p> RawCtx<'p> {
                 });
                 let cv = CV {
                     prefix_value: best.unwrap().to_string(),
-                    has_value: false,
                     prefix_len: 0,
+                    kind: CvKind::Item,
                     help: truncate_help(named.help),
                     shell: *shell,
                     meta_only: false,

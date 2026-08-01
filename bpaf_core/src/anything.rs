@@ -1,11 +1,13 @@
-use std::{ffi::OsStr, rc::Rc, str::FromStr};
+use std::{ffi::OsStr, marker::PhantomData, rc::Rc, str::FromStr};
 
 use crate::{
     Ctx, ExitHandle, JoinHandle, Metavar, Parser,
+    complete::Completer,
+    consumers::WithComplete,
     error::Error,
     make_chan,
     os_str::parse_os_str,
-    traits::{Item, Visitor},
+    traits::{Item, Leaf, Visitor},
 };
 
 pub struct Anything<T> {
@@ -19,6 +21,15 @@ impl<T> Anything<T> {
     pub fn help(mut self, help: &'static str) -> Self {
         self.help = Some(help);
         self
+    }
+
+    /// Add a shell completion function for the values produced by this parser
+    pub fn complete<C, F: Completer<C>>(self, completer: F) -> WithComplete<Anything<T>, F, C> {
+        WithComplete {
+            inner: self,
+            ctr: completer,
+            ctx: PhantomData,
+        }
     }
 }
 
@@ -72,7 +83,7 @@ impl<T: 'static> Parser for Anything<T> {
 
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
         let r = ctx
-            .await_passing_check(self.meta, self.check.clone())
+            .await_passing_check(self.meta, self.help, self.check.clone())
             .await?;
 
         if r {
@@ -91,6 +102,8 @@ impl<T: 'static> Parser for Anything<T> {
         })
     }
 }
+
+impl<T> Leaf for Anything<T> {}
 
 pub fn any_from_str<T: FromStr + 'static>(meta: &'static str) -> Anything<T>
 where
