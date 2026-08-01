@@ -224,6 +224,26 @@ impl<T: 'static> OptionParser<T> {
         self.info.fallback_to_usage = true;
         self
     }
+
+    /// Run a parallel parser, discarding the result
+    ///
+    /// It is more efficient to use [`Parser::and_also`] directly. See [`Parser::and_also`] for more
+    /// details.
+    ///
+    /// If you have to use it with multiple parsers - combine them before passing to
+    /// [`OptionParser::and_also`]:
+    ///
+    /// ```ignore
+    /// // BAD: adds multiple indirection levels
+    /// let bad = option_parser.and_also(parser_a).and_also(parser_b);
+    ///
+    /// // GOOD: adds less indirection levels
+    /// let good = option_parser.and_also(parser_a.and_also(parser_b));
+    /// ```
+    pub fn and_also(mut self, other: impl Parser<Output = ()> + 'static) -> Self {
+        self.inner = self.inner.and_also(other).into_box();
+        self
+    }
 }
 
 impl<T: 'static> Visited for OptionParser<T> {
