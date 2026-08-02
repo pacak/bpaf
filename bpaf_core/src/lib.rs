@@ -174,18 +174,22 @@ pub mod api {
     }
 
     pub mod algebras {}
+    pub use crate::ctx::{Ctx, RawCtx};
 }
 
 use crate::{
-    SharedCtx,
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
     complete::CReq,
     console_writer::Styled,
+    ctx::{Ctx, Op, RawCtx, Scope, SharedCtx, Triggers},
+    error::{Error, ParseFailure, Problem},
     help::Help,
     info::Info,
     os_str::OsStrExt,
-    pecking::Mixer,
+    pecking::{Mixer, PeckingOrder},
+    tasks::Tasks,
+    traits::{BoxParser, Item, VKind, VisitGroup, Visitor},
     utils::Vec1,
     visitors::errors::IsInCommand,
 };
@@ -196,15 +200,12 @@ pub use crate::{
     anything::{any, any_from_str},
     completions::CompHelp,
     console_writer::{Colorscheme, Style},
-    consumers::*,
-    traits::{Parser, Visited},
+    consumers::{
+        ArgumentLike, Flag, Keyword, Literal, Named, Nest, env, leftovers, literal, long,
+        positional, pure, pure_with, short,
+    },
+    traits::{Leaf, Parser, Visited},
     vault::Key,
-};
-
-use crate::{
-    error::{Error, ParseFailure, Problem},
-    pecking::PeckingOrder,
-    traits::{VisitGroup, Visitor, *},
 };
 
 use std::{
@@ -212,12 +213,24 @@ use std::{
     cell::{Cell, RefCell},
     collections::{BTreeMap, VecDeque},
     ffi::{OsStr, OsString},
-    fmt::Write,
+    fmt::Write as _,
     marker::PhantomData,
     pin::Pin,
     rc::Rc,
     task::Poll,
 };
+
+#[doc(hidden)]
+pub mod __private {
+    pub use crate::{
+        Kind,
+        api::composite::Sum,
+        ctx::Ctx,
+        error::Error,
+        traits::{BoxParser, Item, Leaf, Parser, VKind, VisitGroup, Visited, Visitor},
+    };
+    pub use ::std::compile_error;
+}
 
 /// A newtype wrapper for sending a value out of a finishing task
 pub struct JoinHandle<T> {
@@ -240,15 +253,6 @@ impl<T> ExitHandle<T> {
     pub(crate) fn exit(&self, value: Result<T, Error>) {
         self.result.set(Some(value))
     }
-}
-
-#[doc(hidden)]
-pub mod __private {
-    pub use crate::api::composite::Sum;
-    pub use crate::error::Error;
-    pub use crate::traits::*;
-    pub use crate::{Ctx, Kind};
-    pub use ::std::compile_error;
 }
 
 #[derive(Clone)]
@@ -428,7 +432,6 @@ impl Parent {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Id(u32);
 
-pub use ctx::*;
 #[derive(Debug)]
 /// "we could have been consume `name`, but we consumed whatever was at `pos` instead"
 enum Conflict {
@@ -761,8 +764,6 @@ impl<'p> RawCtx<'p> {
         info
     }
 }
-
-use crate::tasks::Tasks;
 
 /// Tracks forward progress of the executor to detect infinite loops.
 ///
