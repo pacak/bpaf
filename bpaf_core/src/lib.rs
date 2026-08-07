@@ -48,8 +48,9 @@ pub mod api {
         //! - [`Literal::nest`]
 
         use crate::{
-            Ctx, Kind, Parser, Scope,
+            Ctx, Parser, Scope,
             error::Error,
+            tasks::Kind,
             traits::{BoxParser, VisitGroup, Visitor},
         };
 
@@ -188,7 +189,7 @@ use crate::{
     info::Info,
     os_str::OsStrExt,
     pecking::{Mixer, PeckingOrder},
-    tasks::Tasks,
+    tasks::{Id, Kind, Parent, Task, TaskInfo, TaskState, Tasks},
     traits::{BoxParser, Item, VKind, VisitGroup, Visitor},
     utils::Vec1,
     visitors::errors::IsInCommand,
@@ -223,10 +224,10 @@ use std::{
 #[doc(hidden)]
 pub mod __private {
     pub use crate::{
-        Kind,
         api::composite::Sum,
         ctx::Ctx,
         error::Error,
+        tasks::Kind,
         traits::{BoxParser, Item, Leaf, Parser, VKind, VisitGroup, Visited, Visitor},
     };
     pub use ::std::compile_error;
@@ -274,84 +275,6 @@ impl std::fmt::Debug for TTarget {
     }
 }
 
-/// A parsing thread tracked by the executor
-///
-/// Doesn't produce a value directly, instead uses a pair of [`ExitHandle`]/[`JoinHandle`] to
-/// pass the value to the parent thread.
-///
-/// Tasks form a tree structure
-struct Task<'a> {
-    act: Pin<Box<dyn Future<Output = ()> + 'a>>,
-    info: TaskInfo,
-}
-
-impl std::fmt::Debug for Task<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Task { act: _, info } = self;
-        f.debug_struct("Task").field("info", info).finish()
-    }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum Kind {
-    Sum,
-    Prod,
-}
-
-/// Shared state and meta info about tasks
-///
-/// Used by the executor but also shared with the task itself as it runs in
-/// [`SharedCtx::current_task`]
-#[derive(Debug, Clone, Copy)]
-struct TaskInfo {
-    /// Current task Id
-    id: Id,
-    parent_kind: Kind,
-    parent_id: Parent,
-    /// For trigger tasks having it nonzero means the task is done
-    /// and won't be consuming anything
-    consumed: u32,
-    /// number of children this task is currently waiting for, we are going to wake them up only if
-    // there's no pending children - if we can return immediately
-    pending: u32,
-    state: TaskState,
-    /// If true, this task (and all its children) use the global trigger set
-    global: bool,
-}
-
-/// Tracks tasks state
-///
-/// Updates once, right before storing result in the output handle
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum TaskState {
-    Pending,
-    Success,
-    Failure,
-}
-
-impl From<bool> for TaskState {
-    fn from(success: bool) -> Self {
-        if success {
-            Self::Success
-        } else {
-            Self::Failure
-        }
-    }
-}
-
-impl Default for TaskInfo {
-    fn default() -> Self {
-        Self {
-            id: Id(0),
-            parent_kind: Kind::Sum,
-            parent_id: Parent(0),
-            consumed: 0,
-            pending: 0,
-            state: TaskState::Pending,
-            global: false,
-        }
-    }
-}
 #[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
 /// Placeholder name used in help messages for [`Argument`] and [`Positional`]
 pub struct Metavar(&'static str);
@@ -411,26 +334,6 @@ impl Future for Yield {
         }
     }
 }
-
-/// A newtyped [`Id`] for parser tracking relationship
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-struct Parent(u32);
-impl Parent {
-    fn as_id(&self) -> Id {
-        Id(self.0)
-    }
-
-    fn is_root(&self) -> bool {
-        *self == Parent(0)
-    }
-}
-
-/// An `Id` of a parser instance
-///
-/// Used to track parsers in the Executor as well as relationship between parsers in the
-/// [`PeckingOrder`]
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-struct Id(u32);
 
 #[derive(Debug)]
 /// "we could have been consume `name`, but we consumed whatever was at `pos` instead"
@@ -1753,11 +1656,11 @@ impl<P: Parser> Parser for AndAlso<P> {
     type Output = P::Output;
 
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
-        let inner = ctx.spawn(crate::Kind::Prod, &self.inner);
+        let inner = ctx.spawn(crate::tasks::Kind::Prod, &self.inner);
         let also: Vec<_> = self
             .also
             .iter()
-            .map(|p| ctx.spawn(crate::Kind::Prod, p))
+            .map(|p| ctx.spawn(crate::tasks::Kind::Prod, p))
             .collect();
 
         ctx.wait_for_children().await;
