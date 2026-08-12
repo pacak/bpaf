@@ -2,14 +2,14 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{
     parse::{Parse, ParseStream},
-    token, Attribute, Error, Expr, Ident, LitChar, LitStr, Path, Result, Type,
+    token, Attribute, Error, Expr, Ident, LitChar, LitStr, Result, Type,
 };
 
 use crate::{
     help::Help,
     utils::{
         doc_comment, parse_arg, parse_arg2, parse_expr, parse_lit_char, parse_lit_str,
-        parse_opt_metavar, to_kebab_case,
+        parse_opt_arg, parse_opt_metavar, to_kebab_case,
     },
 };
 
@@ -67,7 +67,7 @@ pub enum Consumer {
         span: Span,
     },
     External {
-        ident: Option<Path>,
+        expr: Option<Expr>,
         span: Span,
     },
     Pure {
@@ -448,12 +448,8 @@ impl Consumer {
             let present = parse_arg(input)?;
             Consumer::ReqFlag { present, span }
         } else if kw == "external" {
-            let ident = if input.peek(token::Paren) {
-                Some(parse_arg(input)?)
-            } else {
-                None
-            };
-            Consumer::External { ident, span }
+            let expr = parse_opt_arg(input)?;
+            Consumer::External { expr, span }
         } else if kw == "pure" {
             let expr = parse_arg(input)?;
             Consumer::Pure { expr, span }
