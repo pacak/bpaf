@@ -1,6 +1,16 @@
 use crate::{buffer::Doc, item::Item};
 
-#[doc(hidden)]
+/// Description of the shape of a parser
+///
+/// `Meta` is the tree `bpaf` builds to describe what a parser accepts: the combinators
+/// ([`And`](Meta::And), [`Or`](Meta::Or), [`Optional`](Meta::Optional), ...) form the branches
+/// and [`Item`] are the leaves of the tree.
+///
+/// Retrieve the tree with [`OptionParser::meta`](crate::OptionParser::meta) for a whole application or
+/// with [`Parser::meta`](crate::Parser::meta) for a fragment of one.
+///
+/// Parsers hidden with [`hide`](crate::Parser::hide) collapse into [`Skip`](Meta::Skip), so a
+/// hidden item is indistinguishable from an absent one.
 #[derive(Clone, Debug, Default)]
 pub enum Meta {
     /// All arguments listed in a vector must be present
