@@ -1,43 +1,68 @@
 use crate::{info::Info, meta_help::Metavar, parsers::NamedArg, Doc, Meta};
 
-#[doc(hidden)]
+/// A single thing a parser consumes from the command line
+///
+/// Leaves of the [`Meta`] tree. Everything a renderer needs to describe one flag, argument,
+/// positional or command is here: the names it answers to, the metavariable to show for its
+/// value, the environment variable it falls back to and the help text attached to it.
 #[derive(Clone, Debug)]
 pub enum Item {
+    /// Free form item created with [`any`](crate::any)
     Any {
+        /// Rendered in place of a name, since `any` has none
         metavar: Doc,
         /// used by any, moves it from positionals into arguments
         anywhere: bool,
+        /// Help message attached with [`help`](crate::parsers::ParseAny::help)
         help: Option<Doc>,
     },
     /// Positional item, consumed from the the front of the arguments
-    /// <FILE>
-    Positional { metavar: Metavar, help: Option<Doc> },
-    Command {
-        name: &'static str,
-        short: Option<char>,
+    /// `<FILE>`
+    Positional {
+        /// Placeholder name for the value, `FILE` in `<FILE>`
+        metavar: Metavar,
+        /// Help message attached with [`help`](crate::parsers::ParsePositional::help)
         help: Option<Doc>,
+    },
+    /// Subcommand with a parser of its own
+    Command {
+        /// Name the subcommand is invoked by
+        name: &'static str,
+        /// Single character alias, if any
+        short: Option<char>,
+        /// Single line summary shown in the parent's help message
+        help: Option<Doc>,
+        /// Shape of the subcommand's own parser, walk it to document nested commands
         meta: Box<Meta>,
+        /// Description, header and footer of the subcommand's help message
         info: Box<Info>,
     },
     /// short or long name, consumed anywhere
     /// -f
     /// --file
     Flag {
+        /// Names this flag answers to
         name: ShortLong,
         /// used for disambiguation
         shorts: Vec<char>,
+        /// Environment variable consulted when the flag is absent
         env: Option<&'static str>,
+        /// Help message attached with [`help`](crate::parsers::NamedArg::help)
         help: Option<Doc>,
     },
     /// Short or long name followed by a value, consumed anywhere
-    /// -f <VAL>
-    /// --file <VAL>
+    /// `-f <VAL>`
+    /// `--file <VAL>`
     Argument {
+        /// Names this argument answers to
         name: ShortLong,
         /// used for disambiguation
         shorts: Vec<char>,
+        /// Placeholder name for the value, `VAL` in `--file <VAL>`
         metavar: Metavar,
+        /// Environment variable consulted when the argument is absent
         env: Option<&'static str>,
+        /// Help message attached with [`help`](crate::parsers::NamedArg::help)
         help: Option<Doc>,
     },
 }
@@ -59,11 +84,16 @@ impl Item {
     }
 }
 
-#[doc(hidden)]
+/// Names a flag or an argument answers to
+///
+/// Names are stored without their dashes, `Long("file")` is written `--file` on a command line.
 #[derive(Copy, Clone, Debug)]
 pub enum ShortLong {
+    /// Only a short name, `-f`
     Short(char),
+    /// Only a long name, `--file`
     Long(&'static str),
+    /// Both, with the short name acting as an alias for the long one
     Both(char, &'static str),
 }
 
