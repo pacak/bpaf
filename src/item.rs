@@ -17,7 +17,7 @@ pub enum Item {
         help: Option<Doc>,
     },
     /// Positional item, consumed from the the front of the arguments
-    /// <FILE>
+    /// `<FILE>`
     Positional {
         /// Placeholder name for the value, `FILE` in `<FILE>`
         metavar: Metavar,
@@ -51,8 +51,8 @@ pub enum Item {
         help: Option<Doc>,
     },
     /// Short or long name followed by a value, consumed anywhere
-    /// -f <VAL>
-    /// --file <VAL>
+    /// `-f <VAL>`
+    /// `--file <VAL>`
     Argument {
         /// Names this argument answers to
         name: ShortLong,

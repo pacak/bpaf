@@ -36,7 +36,7 @@ pub enum Meta {
     /// This item is not rendered in the help message
     #[default]
     Skip,
-    /// TODO make it Option<Box<Doc>>
+    /// TODO make it `Option<Box<Doc>>`
     CustomUsage(Box<Meta>, Box<Doc>),
     /// this meta must be prefixed with -- in unsage group
     Strict(Box<Meta>),
