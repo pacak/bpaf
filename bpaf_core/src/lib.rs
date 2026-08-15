@@ -189,7 +189,7 @@ use crate::{
     info::Info,
     os_str::OsStrExt,
     pecking::{Mixer, PeckingOrder},
-    tasks::{Id, Kind, Parent, Task, TaskInfo, TaskState, Tasks},
+    tasks::{ExitHandle, Id, JoinHandle, Kind, Parent, Task, TaskInfo, TaskState, Tasks},
     traits::{BoxParser, Item, VKind, VisitGroup, Visitor},
     utils::Vec1,
     visitors::errors::IsInCommand,
@@ -227,33 +227,10 @@ pub mod __private {
         api::composite::Sum,
         ctx::Ctx,
         error::Error,
-        tasks::Kind,
+        tasks::{JoinHandle, Kind},
         traits::{BoxParser, Item, Leaf, Parser, VKind, VisitGroup, Visited, Visitor},
     };
     pub use ::std::compile_error;
-}
-
-/// A newtype wrapper for sending a value out of a finishing task
-pub struct JoinHandle<T> {
-    result: Rc<Cell<Option<Result<T, Error>>>>,
-}
-
-impl<T> JoinHandle<T> {
-    pub fn take(&self) -> Result<T, Error> {
-        self.result
-            .take()
-            .unwrap_or(Err(Error::Silent("Empty JoinHandle?")))
-    }
-}
-
-/// A newtype wrapper for receiving a value from a finishing task
-pub struct ExitHandle<T> {
-    result: Rc<Cell<Option<Result<T, Error>>>>,
-}
-impl<T> ExitHandle<T> {
-    pub(crate) fn exit(&self, value: Result<T, Error>) {
-        self.result.set(Some(value))
-    }
 }
 
 #[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
@@ -398,15 +375,6 @@ enum Reason<'p> {
     Complete(complete::ShellRender, Vec<CReq<'p>>),
 }
 
-fn make_chan<T: 'static>() -> (ExitHandle<T>, JoinHandle<T>) {
-    let result = Rc::new(Cell::new(None));
-    let exit = ExitHandle { result };
-    let join = JoinHandle {
-        result: exit.result.clone(),
-    };
-    (exit, join)
-}
-
 impl<'p> RawCtx<'p> {
     #[inline(never)]
     /// is_final includes both "Ok" result and an error that can be caught.
@@ -487,15 +455,6 @@ impl<'p> RawCtx<'p> {
             out.push_str(&self.shared.args.items[i as usize].to_string_lossy());
         }
         Some(out)
-    }
-
-    /// Convert a parser into a task that saves its output to a [`JoinHandle`]
-    fn make_raw_task<T: 'static>(
-        self: &Ctx<'p>,
-        parser: &'p impl Parser<Output = T>,
-    ) -> (JoinHandle<T>, Pin<Box<impl Future<Output = ()> + 'p>>) {
-        let (out, handle) = make_chan();
-        (handle, self.make_act(out, parser))
     }
 
     fn make_act<T: 'static>(

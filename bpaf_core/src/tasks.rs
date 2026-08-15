@@ -1,9 +1,11 @@
 use std::{
+    cell::Cell,
     ops::{Index, IndexMut},
     pin::Pin,
+    rc::Rc,
 };
 
-use crate::Scope;
+use crate::{Ctx, Parser, Scope, ctx::RawCtx, error::Error};
 
 fn to_ix(id: Id) -> usize {
     let id = id.0 as usize;
@@ -184,3 +186,46 @@ impl Parent {
 /// [`PeckingOrder`]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct Id(pub(crate) u32);
+
+pub(crate) fn make_chan<T: 'static>() -> (ExitHandle<T>, JoinHandle<T>) {
+    let result = Rc::new(Cell::new(None));
+    let exit = ExitHandle { result };
+    let join = JoinHandle {
+        result: exit.result.clone(),
+    };
+    (exit, join)
+}
+
+impl<'p> RawCtx<'p> {
+    /// Convert a parser into a task that saves its output to a [`JoinHandle`]
+    pub(crate) fn make_raw_task<T: 'static>(
+        self: &Ctx<'p>,
+        parser: &'p impl Parser<Output = T>,
+    ) -> (JoinHandle<T>, Pin<Box<impl Future<Output = ()> + 'p>>) {
+        let (out, handle) = make_chan();
+        (handle, self.make_act(out, parser))
+    }
+}
+
+/// A newtype wrapper for sending a value out of a finishing task
+pub struct JoinHandle<T> {
+    result: Rc<Cell<Option<Result<T, Error>>>>,
+}
+
+impl<T> JoinHandle<T> {
+    pub fn take(&self) -> Result<T, Error> {
+        self.result
+            .take()
+            .unwrap_or(Err(Error::Silent("Empty JoinHandle?")))
+    }
+}
+
+/// A newtype wrapper for receiving a value from a finishing task
+pub(crate) struct ExitHandle<T> {
+    result: Rc<Cell<Option<Result<T, Error>>>>,
+}
+impl<T> ExitHandle<T> {
+    pub(crate) fn exit(&self, value: Result<T, Error>) {
+        self.result.set(Some(value))
+    }
+}
