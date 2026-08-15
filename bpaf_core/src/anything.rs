@@ -1,11 +1,10 @@
-use std::{ffi::OsStr, marker::PhantomData, rc::Rc, str::FromStr};
+use std::{cell::Cell, ffi::OsStr, marker::PhantomData, rc::Rc, str::FromStr};
 
 use crate::{
-    Ctx, ExitHandle, JoinHandle, Metavar, Parser,
+    Ctx, Metavar, Parser,
     complete::Completer,
     consumers::WithComplete,
     error::Error,
-    make_chan,
     os_str::parse_os_str,
     traits::{Item, Leaf, Visitor},
 };
@@ -13,7 +12,7 @@ use crate::{
 pub struct Anything<T> {
     meta: Metavar,
     help: Option<&'static str>,
-    join: JoinHandle<T>,
+    join: Rc<Cell<Option<T>>>,
     check: Rc<dyn Fn(&OsStr) -> bool>,
 }
 
@@ -34,7 +33,7 @@ impl<T> Anything<T> {
 }
 
 pub trait AnyCheck<C, T> {
-    fn into_boxed(self, h: ExitHandle<T>) -> Rc<dyn Fn(&OsStr) -> bool>;
+    fn into_boxed(self, h: Rc<Cell<Option<T>>>) -> Rc<dyn Fn(&OsStr) -> bool>;
 }
 
 impl<T, F> AnyCheck<&OsStr, T> for F
@@ -42,10 +41,10 @@ where
     T: 'static,
     F: Fn(&OsStr) -> Option<T> + 'static,
 {
-    fn into_boxed(self, h: ExitHandle<T>) -> Rc<dyn Fn(&OsStr) -> bool> {
+    fn into_boxed(self, h: Rc<Cell<Option<T>>>) -> Rc<dyn Fn(&OsStr) -> bool> {
         Rc::new(move |os: &OsStr| match self(os) {
             Some(v) => {
-                h.exit(Ok(v));
+                h.set(Some(v));
                 true
             }
             None => false,
@@ -57,10 +56,10 @@ where
     T: 'static,
     F: Fn(&str) -> Option<T> + 'static,
 {
-    fn into_boxed(self, h: ExitHandle<T>) -> Rc<dyn Fn(&OsStr) -> bool> {
+    fn into_boxed(self, h: Rc<Cell<Option<T>>>) -> Rc<dyn Fn(&OsStr) -> bool> {
         Rc::new(move |s: &OsStr| match s.to_str().and_then(&self) {
             Some(v) => {
-                h.exit(Ok(v));
+                h.set(Some(v));
                 true
             }
             None => false,
@@ -69,12 +68,12 @@ where
 }
 
 pub fn any<K, T: 'static>(meta: &'static str, check: impl AnyCheck<K, T>) -> Anything<T> {
-    let (exit, join) = make_chan();
+    let join = Rc::new(Cell::new(None));
     Anything {
         meta: Metavar(meta),
         help: None,
-        join,
-        check: check.into_boxed(exit),
+        join: join.clone(),
+        check: check.into_boxed(join),
     }
 }
 
@@ -87,7 +86,9 @@ impl<T: 'static> Parser for Anything<T> {
             .await?;
 
         if r {
-            self.join.take()
+            self.join
+                .take()
+                .ok_or(Error::Silent("No value from passing check?"))
         } else {
             let item = crate::error::MissingItem::Pos { meta: self.meta };
             Err(Error::missing(item))
