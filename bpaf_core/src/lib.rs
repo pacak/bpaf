@@ -256,25 +256,6 @@ impl<T> ExitHandle<T> {
     }
 }
 
-#[derive(Clone)]
-enum TTarget {
-    Arg(Name<'static>),
-    Flag(Name<'static>),
-    Pos,
-    Literal(Lit<'static>),
-}
-
-impl std::fmt::Debug for TTarget {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Arg(arg0) => f.debug_tuple("Arg").field(arg0).finish(),
-            Self::Flag(arg0) => f.debug_tuple("Flag").field(arg0).finish(),
-            Self::Pos => write!(f, "Pos"),
-            Self::Literal(arg0) => f.debug_tuple("Literal").field(arg0).finish(),
-        }
-    }
-}
-
 #[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
 /// Placeholder name used in help messages for [`Argument`] and [`Positional`]
 pub struct Metavar(&'static str);
