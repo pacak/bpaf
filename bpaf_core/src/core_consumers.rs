@@ -7,13 +7,32 @@
 //! Everything here is either fixed type or (in rare cases &dyn...)
 
 use crate::{
-    Arg, CReq, Conflict, Error, Id, KillReason, Lit, Literal, Metavar, Named, Op, Problem, RawCtx,
-    Reason, Scope, TTarget, arg,
+    Arg, CReq, Conflict, Error, Id, KillReason, Lit, Literal, Metavar, Name, Named, Op, Problem,
+    RawCtx, Reason, Scope, arg,
     complete::CompReply,
     error::{CV, CvKind},
     lex_os_arg, r#yield,
 };
 use std::{ffi::OsStr, rc::Rc};
+
+#[derive(Clone)]
+enum TTarget {
+    Arg(Name<'static>),
+    Flag(Name<'static>),
+    Pos,
+    Literal(Lit<'static>),
+}
+
+impl std::fmt::Debug for TTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Arg(arg0) => f.debug_tuple("Arg").field(arg0).finish(),
+            Self::Flag(arg0) => f.debug_tuple("Flag").field(arg0).finish(),
+            Self::Pos => write!(f, "Pos"),
+            Self::Literal(arg0) => f.debug_tuple("Literal").field(arg0).finish(),
+        }
+    }
+}
 
 impl TTarget {
     fn into_conflict(self, pos: u32, id: Id, global: bool) -> Conflict {
