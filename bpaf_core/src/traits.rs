@@ -3,13 +3,14 @@
 #![cfg_attr(doc, warn(unused_imports))]
 
 use crate::{
-    Ctx, Error, Exit, HelpCallback, HelpItem, HelpLiteral, Lit, Metavar, Named, Nest,
+    Ctx, Error, Exit, Lit, Metavar, Named, Nest,
     adapters::{
         Fallback, FallbackStr, FallbackWith, Global, Group, Guard, Hide, Map, OptionParser,
         Optional, OrExit, Parse, ThenExit, WithOffset,
     },
     completions::CompHelp,
     error::ParseFailure,
+    help::custom::{HelpCallback, HelpItem, HelpLiteral},
     info::Info,
     repeat::{Collect, Count, Last, Many, Many1},
     vault::Vault,

@@ -9,7 +9,7 @@ mod console_writer;
 mod consumers;
 mod core_consumers;
 mod ctx;
-pub mod custom_help;
+mod custom_help;
 mod error;
 pub mod help;
 mod help_cmd;
@@ -196,7 +196,6 @@ pub use crate::{
     completions::CompHelp,
     console_writer::{Colorscheme, Style},
     consumers::*,
-    custom_help::{HelpCallback, HelpItem, HelpLiteral},
     traits::{Parser, Visited},
     vault::Key,
 };
