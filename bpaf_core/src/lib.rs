@@ -14,6 +14,7 @@ pub mod document;
 mod error;
 pub mod help;
 mod help_cmd;
+mod helpers;
 mod info;
 mod macros;
 mod miniansi;
@@ -176,6 +177,9 @@ pub mod api {
 
     pub mod algebras {}
     pub use crate::ctx::{Ctx, RawCtx};
+    pub mod helpers {
+        pub use crate::helpers::Cargo;
+    }
 }
 
 use crate::{
@@ -205,6 +209,7 @@ pub use crate::{
         ArgumentLike, Flag, Keyword, Literal, Named, Nest, env, leftovers, literal, long,
         positional, pure, pure_with, short,
     },
+    helpers::cargo_helper,
     traits::{Leaf, Parser, Visited},
     vault::Key,
 };
@@ -1624,30 +1629,6 @@ impl<P: Parser> Parser for AndAlso<P> {
             p.visit(visitor);
         }
         visitor.pop_group();
-    }
-}
-
-pub struct Cargo<P> {
-    name: &'static str,
-    inner: P,
-}
-
-pub fn cargo_helper<P>(name: &'static str, inner: P) -> Cargo<P> {
-    Cargo { name, inner }
-}
-
-impl<P: Parser> Parser for Cargo<P> {
-    type Output = P::Output;
-
-    fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> {
-        if ctx.shared.args.get(0).is_some_and(|v| v == self.name) {
-            ctx.cursor().update(|c| c + 1);
-        }
-        self.inner.eval(ctx)
-    }
-
-    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        self.inner.visit(visitor)
     }
 }
 
