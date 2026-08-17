@@ -1,4 +1,5 @@
-use crate::*;
+use crate::{help::custom::*, *};
+
 use std::fmt::Write;
 
 #[test]
@@ -121,7 +122,7 @@ Available options:
 
 #[test]
 fn help_map_multiname() {
-    use crate::custom_help::NAMED;
+    use crate::help::custom::*;
     let a = short('a')
         .long("all")
         .long("all-selected")

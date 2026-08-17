@@ -1,6 +1,10 @@
 pub use crate::help_cmd::help_command as command;
 use crate::{BoxParser, Parser, long, short};
 
+pub mod custom {
+    pub use crate::custom_help::*;
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Default)]
 pub enum Help {
     #[default]
