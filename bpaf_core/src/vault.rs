@@ -4,7 +4,7 @@ use std::{
     ops::DerefMut,
 };
 
-use crate::*;
+use crate::{Ctx, Error, Parser, Problem, Visitor};
 
 pub struct Vault<I, F> {
     pub(crate) inner: I,
@@ -84,11 +84,15 @@ where
     }
 }
 
+#[doc(inline)]
+pub use crate::key;
+
 #[macro_export]
+#[doc(hidden)]
 macro_rules! key {
     ($name:ident : $ty:ty) => {
         pub struct $name;
-        impl $crate::Key for $name {
+        impl $crate::vault::Key for $name {
             type Value = $ty;
         }
     };

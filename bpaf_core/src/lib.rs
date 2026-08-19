@@ -24,7 +24,7 @@ mod repeat;
 mod tasks;
 mod traits;
 mod utils;
-mod vault;
+pub mod vault;
 mod visitors;
 
 pub mod api {
@@ -211,7 +211,6 @@ pub use crate::{
     },
     helpers::cargo_helper,
     traits::{Leaf, Parser, Visited},
-    vault::Key,
 };
 
 use std::{
