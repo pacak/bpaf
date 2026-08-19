@@ -851,3 +851,84 @@ where
         }
     }
 }
+
+/// Parser that produces a failure with a given message
+///
+/// Created with [`fail`] or [`success`], useful for custom error messages or things
+/// like custom `--version` flags, designed to be used with [`Parser::or_exit`] and
+/// [`Parser::then_exit`]
+pub struct Exit<T>(pub(crate) InnerExit<T>);
+
+pub(crate) enum InnerExit<T> {
+    Whole { code: i32, msg: Styled },
+    Current { value: T },
+}
+
+impl<T: 'static> Exit<T> {
+    pub(crate) fn run_inner(self, ctx: Ctx) -> Result<T, Error> {
+        match self.0 {
+            InnerExit::Whole { code, msg } => {
+                let msg = msg.clone();
+                let failure = if code == 0 {
+                    ParseFailure::Stdout(msg)
+                } else {
+                    ParseFailure::Stderr(msg)
+                };
+                Err(Error::Final(failure))
+            }
+            InnerExit::Current { value } => {
+                ctx.shared.stop.set(true);
+                Ok(value)
+            }
+        }
+    }
+
+    pub fn failure(msg: impl Into<Styled>) -> Exit<T> {
+        Exit(InnerExit::Whole {
+            code: 1,
+            msg: msg.into(),
+        })
+    }
+
+    pub fn success(msg: impl Into<Styled>) -> Exit<T> {
+        Exit(InnerExit::Whole {
+            code: 0,
+            msg: msg.into(),
+        })
+    }
+}
+
+impl<T> Exit<T> {
+    pub fn current_parser(value: T) -> Self {
+        Exit(InnerExit::Current { value })
+    }
+}
+
+pub struct Fail<T> {
+    ctx: PhantomData<T>,
+    msg: &'static str,
+}
+
+pub fn fail<T>(msg: &'static str) -> Fail<T> {
+    Fail {
+        ctx: PhantomData,
+        msg,
+    }
+}
+
+impl<T: 'static> Parser for Fail<T> {
+    type Output = T;
+
+    fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> + 'p {
+        let pos = ctx.cursor().get();
+        let err = Error::Problem(
+            pos,
+            Problem::Dynamic {
+                err: self.msg.to_string(),
+            },
+        );
+        std::future::ready(Err(err))
+    }
+
+    fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
+}
