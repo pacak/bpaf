@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{Item, Metavar, Named, Nest, VKind, VisitGroup, Visitor};
+use crate::{Item, Metavar, Named, VKind, VisitGroup, Visitor};
 
 #[derive(Debug, Default)]
 pub struct Usage<'a> {
@@ -177,18 +177,18 @@ impl<'a> Visitor<'a> for Usage<'a> {
             } => Put::Pos { meta, strict },
             Item::Command { .. } => Put::Command,
             Item::Nested { outer, inner } => {
-                match outer {
-                    Nest::Named(flag) => {
-                        let Some(name) = ShortOrLong::from_named(&flag.named) else {
-                            return;
-                        };
-                        let named = Put::Named { name, meta: None };
-                        self.events.push(Event::Put(named));
-                    }
-                    Nest::Keyword(_) => {
-                        self.events.push(Event::Put(Put::Command));
-                        return;
-                    }
+                let before = self.events.len();
+                let mut vn = VisitNest {
+                    events: &mut self.events,
+                };
+                crate::Visited::vi(outer, &mut vn);
+                if before == self.events.len()
+                    || self
+                        .events
+                        .last()
+                        .is_some_and(|c| matches!(c, Event::Put(Put::Command)))
+                {
+                    return;
                 }
                 let mut u = Usage::default();
                 inner.vi(&mut u);
@@ -490,4 +490,39 @@ impl Event<'_> {
             _ => None,
         }
     }
+}
+
+struct VisitNest<'i, 'a> {
+    events: &'i mut Vec<Event<'a>>,
+}
+
+impl<'a> Visitor<'a> for VisitNest<'_, 'a> {
+    fn item<'t>(&mut self, item: Item<'a, 't>) {
+        let event = match item {
+            Item::Flag { named } => {
+                let Some(name) = ShortOrLong::from_named(named) else {
+                    return;
+                };
+                Put::Named { name, meta: None }
+            }
+            Item::OptionParser { .. }
+            | Item::Arg { .. }
+            | Item::Positional { .. }
+            | Item::Nested { .. }
+            | Item::Section { .. } => unreachable!(),
+            Item::Command { .. } => Put::Command,
+            Item::Rendered { text } => Put::Text {
+                text: Cow::Owned(text.to_owned()),
+            },
+        };
+        self.events.push(Event::Put(event));
+    }
+
+    fn identify(&self) -> VKind {
+        VKind::Usage
+    }
+
+    fn push_group(&mut self, _: VisitGroup) {}
+
+    fn pop_group(&mut self) {}
 }
