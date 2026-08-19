@@ -159,6 +159,15 @@ pub enum Nest {
     Keyword(Keyword<()>),
 }
 
+impl Visited for Nest {
+    fn vi<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        match self {
+            Nest::Named(flag) => flag.vi(visitor),
+            Nest::Keyword(keyword) => keyword.vi(visitor),
+        }
+    }
+}
+
 /// A combination of two parsers - right after seeing `A` parse `B`
 ///
 /// Deals with things like multi argument options or inline commands.
