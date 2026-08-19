@@ -9,6 +9,7 @@ use crate::{
         Optional, OrExit, Parse, ThenExit, WithOffset,
     },
     completions::CompHelp,
+    composite::AndAlso,
     error::ParseFailure,
     help::custom::{HelpCallback, HelpItems, HelpLiteral},
     info::Info,
@@ -300,11 +301,11 @@ pub trait Parser {
         }
     }
 
-    fn and_also(self, other: impl Parser<Output = ()> + 'static) -> crate::AndAlso<Self>
+    fn and_also(self, other: impl Parser<Output = ()> + 'static) -> AndAlso<Self>
     where
         Self: Sized + 'static,
     {
-        crate::AndAlso {
+        AndAlso {
             inner: self,
             also: vec![other.into_box()],
         }
