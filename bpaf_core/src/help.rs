@@ -1,5 +1,8 @@
-pub use crate::help_cmd::help_command as command;
 use crate::{BoxParser, Parser, long, short};
+pub use crate::{
+    console_writer::{Colorscheme, Style},
+    help_cmd::help_command as command,
+};
 
 pub mod custom {
     pub use crate::custom_help::*;

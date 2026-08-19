@@ -44,12 +44,16 @@ pub mod api {
     //! </div>
 
     pub mod composite {
+        pub use crate::{
+            adapters::{OrExit, ThenExit},
+            composite::{AndAlso, Sum},
+            consumers::Nested,
+            traits::Leaf,
+        };
+    }
 
-        //! TODO - blurb on products and sums
-        //! - [`Named::nest`]
-        //! - [`Literal::nest`]
-
-        pub use crate::composite::{AndAlso, Sum};
+    pub mod complete {
+        pub use crate::{completions::CompHelp, consumers::WithComplete};
     }
 
     /// fallback
@@ -63,14 +67,22 @@ pub mod api {
     pub mod ux {}
 
     pub mod primitives {
-        #![allow(rustdoc::redundant_explicit_links)]
-        #![allow(unused_imports)]
-        use crate::*;
-        use std::str::FromStr;
+        pub use crate::{
+            anything::{AnyCheck, Anything},
+            consumers::{
+                Argument, ArgumentLike, BasicArgument, Fail, Flag, Keyword, Leftovers, Named,
+                NegArgument, OnMissingValue, Positional,
+            },
+        };
     }
 
     pub mod algebras {}
-    pub use crate::ctx::{Ctx, RawCtx};
+    pub mod internal {
+        pub use crate::{
+            ctx::{Ctx, RawCtx},
+            traits::Visited,
+        };
+    }
     pub mod helpers {
         pub use crate::helpers::Cargo;
     }
@@ -81,6 +93,7 @@ use crate::{
     args::Args,
     complete::CReq,
     console_writer::Styled,
+    consumers::{InnerExit, Literal, Named},
     ctx::{Ctx, Op, RawCtx, Scope, SharedCtx, Triggers},
     error::{Error, ParseFailure, Problem},
     help::Help,
@@ -88,7 +101,7 @@ use crate::{
     os_str::OsStrExt,
     pecking::{Mixer, PeckingOrder},
     tasks::{ExitHandle, Id, JoinHandle, Kind, Parent, Task, TaskInfo, TaskState, Tasks},
-    traits::{BoxParser, Item, VKind, VisitGroup, Visitor},
+    traits::{BoxParser, Item, Leaf, Lit, Metavar, Name, VKind, VisitGroup, Visited, Visitor},
     utils::Vec1,
     visitors::errors::IsInCommand,
 };
@@ -97,14 +110,9 @@ use crate::{
 pub use crate::{
     adapters::OptionParser,
     anything::{any, any_from_str},
-    completions::CompHelp,
-    console_writer::{Colorscheme, Style},
-    consumers::{
-        ArgumentLike, Flag, Keyword, Literal, Named, env, leftovers, literal, long, positional,
-        pure, pure_with, short,
-    },
+    consumers::{Exit, env, fail, leftovers, literal, long, positional, pure, pure_with, short},
     helpers::cargo_helper,
-    traits::{Leaf, Parser, Visited},
+    traits::Parser,
 };
 
 use std::{
@@ -112,7 +120,6 @@ use std::{
     cell::{Cell, RefCell},
     collections::{BTreeMap, VecDeque},
     ffi::{OsStr, OsString},
-    fmt::Write as _,
     marker::PhantomData,
     pin::Pin,
     rc::Rc,
@@ -129,39 +136,6 @@ pub mod __private {
         traits::{BoxParser, Item, Leaf, Parser, VKind, VisitGroup, Visited, Visitor},
     };
     pub use ::std::compile_error;
-}
-
-#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
-/// Placeholder name used in help messages for [`Argument`] and [`Positional`]
-pub struct Metavar(&'static str);
-impl Metavar {
-    #[inline(never)]
-    pub fn width(&self) -> usize {
-        let mut chars = 0;
-        let mut angle = 0;
-        for c in self.0.chars() {
-            chars += 1;
-            if !(c.is_ascii_digit() || c.is_ascii_uppercase() || c == '-' || c == '_') {
-                angle = 2;
-            }
-        }
-        chars + angle
-    }
-}
-
-impl std::fmt::Display for Metavar {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self
-            .0
-            .as_bytes()
-            .iter()
-            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase() || *c == b'-' || *c == b'_')
-        {
-            write!(f, "{}", self.0)
-        } else {
-            write!(f, "<{}>", self.0)
-        }
-    }
 }
 
 /// A future that yields on the first poll and returns on the second one
@@ -1333,150 +1307,6 @@ impl Mixer {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-pub enum Name<'a> {
-    Short(char),
-    Long(Cow<'a, str>),
-}
-
-impl std::fmt::Display for Name<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Name::Short(s) => write!(f, "-{s}"),
-            Name::Long(l) => write!(f, "--{l}"),
-        }
-    }
-}
-
-impl Name<'_> {
-    pub(crate) fn into_owned(self) -> Name<'static> {
-        match self {
-            Name::Short(s) => Name::Short(s),
-            Name::Long(cow) => Name::Long(Cow::Owned(cow.into_owned())),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-/// A newtype wrapper for [`Name`] to make it a [`Literal`] name instead
-///
-/// So no `-` or `--` for [`Display`](std::fmt::Display) and a helper
-pub struct Lit<'a>(Name<'a>);
-impl Lit<'_> {
-    fn into_owned(self) -> Lit<'static> {
-        Lit(self.0.into_owned())
-    }
-
-    /// Check if value is a valid prefix for Name
-    fn starts_with(&self, value: &str) -> bool {
-        let mut b = [0; 4];
-        match &self.0 {
-            Name::Short(c) => c.encode_utf8(&mut b),
-            Name::Long(cow) => cow.as_ref(),
-        }
-        .starts_with(value)
-    }
-}
-
-impl PartialEq<OsStr> for Lit<'_> {
-    fn eq(&self, other: &OsStr) -> bool {
-        let mut buf = [0; 4];
-        match &self.0 {
-            Name::Short(s) => s.encode_utf8(&mut buf) == other,
-            Name::Long(cow) => cow.as_ref() == other,
-        }
-    }
-}
-
-impl std::fmt::Display for Lit<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match &self.0 {
-            Name::Short(s) => f.write_char(*s),
-            Name::Long(l) => f.write_str(l),
-        }
-    }
-}
-
-/// Parser that produces a failure with a given message
-///
-/// Created with [`fail`] or [`success`], useful for custom error messages or things
-/// like custom `--version` flags, designed to be used with [`Parser::or_exit`] and
-/// [`Parser::then_exit`]
-pub struct Exit<T>(InnerExit<T>);
-
-enum InnerExit<T> {
-    Whole { code: i32, msg: Styled },
-    Current { value: T },
-}
-
-impl<T: 'static> Exit<T> {
-    pub(crate) fn run_inner(self, ctx: Ctx) -> Result<T, Error> {
-        match self.0 {
-            InnerExit::Whole { code, msg } => {
-                let msg = msg.clone();
-                let failure = if code == 0 {
-                    ParseFailure::Stdout(msg)
-                } else {
-                    ParseFailure::Stderr(msg)
-                };
-                Err(Error::Final(failure))
-            }
-            InnerExit::Current { value } => {
-                ctx.shared.stop.set(true);
-                Ok(value)
-            }
-        }
-    }
-
-    pub fn failure(msg: impl Into<Styled>) -> Exit<T> {
-        Exit(InnerExit::Whole {
-            code: 1,
-            msg: msg.into(),
-        })
-    }
-
-    pub fn success(msg: impl Into<Styled>) -> Exit<T> {
-        Exit(InnerExit::Whole {
-            code: 0,
-            msg: msg.into(),
-        })
-    }
-}
-
-impl<T> Exit<T> {
-    pub fn current_parser(value: T) -> Self {
-        Exit(InnerExit::Current { value })
-    }
-}
-
-pub struct Fail<T> {
-    ctx: PhantomData<T>,
-    msg: &'static str,
-}
-
-pub fn fail<T>(msg: &'static str) -> Fail<T> {
-    Fail {
-        ctx: PhantomData,
-        msg,
-    }
-}
-
-impl<T: 'static> Parser for Fail<T> {
-    type Output = T;
-
-    fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> + 'p {
-        let pos = ctx.cursor().get();
-        let err = Error::Problem(
-            pos,
-            Problem::Dynamic {
-                err: self.msg.to_string(),
-            },
-        );
-        std::future::ready(Err(err))
-    }
-
-    fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
-}
 #[cfg(test)]
 mod tests {
     mod adjacent;

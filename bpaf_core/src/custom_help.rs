@@ -5,6 +5,8 @@ use crate::{
     visitors::help::Place,
 };
 
+pub use crate::traits::{Lit, Metavar};
+
 #[cfg_attr(test, derive(Eq, PartialEq))]
 #[derive(Debug, Copy, Clone)]
 pub(crate) enum Block {

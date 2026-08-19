@@ -3,7 +3,7 @@
 #![cfg_attr(doc, warn(unused_imports))]
 
 use crate::{
-    Ctx, Error, Exit, Lit, Metavar, Named,
+    Ctx, Error, Exit, Named,
     adapters::{
         Fallback, FallbackStr, FallbackWith, Global, Group, Guard, Hide, Map, OptionParser,
         Optional, OrExit, Parse, ThenExit, WithOffset,
@@ -16,7 +16,105 @@ use crate::{
     repeat::{Collect, Count, Last, Many, Many1},
     vault::Vault,
 };
-use std::{boxed::Box, marker::PhantomData, pin::Pin, rc::Rc};
+use std::{borrow::Cow, boxed::Box, ffi::OsStr, marker::PhantomData, pin::Pin, rc::Rc};
+
+#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
+/// Placeholder name used in help messages for [`Argument`] and [`Positional`]
+pub struct Metavar(pub(crate) &'static str);
+impl Metavar {
+    #[inline(never)]
+    pub fn width(&self) -> usize {
+        let mut chars = 0;
+        let mut angle = 0;
+        for c in self.0.chars() {
+            chars += 1;
+            if !(c.is_ascii_digit() || c.is_ascii_uppercase() || c == '-' || c == '_') {
+                angle = 2;
+            }
+        }
+        chars + angle
+    }
+}
+
+impl std::fmt::Display for Metavar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self
+            .0
+            .as_bytes()
+            .iter()
+            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase() || *c == b'-' || *c == b'_')
+        {
+            write!(f, "{}", self.0)
+        } else {
+            write!(f, "<{}>", self.0)
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+/// A newtype wrapper for [`Name`] to make it a [`Literal`] name instead
+///
+/// So no `-` or `--` for [`Display`](std::fmt::Display) and a helper
+pub struct Lit<'a>(pub(crate) Name<'a>);
+impl Lit<'_> {
+    pub(crate) fn into_owned(self) -> Lit<'static> {
+        Lit(self.0.into_owned())
+    }
+
+    /// Check if value is a valid prefix for Name
+    pub(crate) fn starts_with(&self, value: &str) -> bool {
+        let mut b = [0; 4];
+        match &self.0 {
+            Name::Short(c) => c.encode_utf8(&mut b),
+            Name::Long(cow) => cow.as_ref(),
+        }
+        .starts_with(value)
+    }
+}
+
+impl PartialEq<OsStr> for Lit<'_> {
+    fn eq(&self, other: &OsStr) -> bool {
+        let mut buf = [0; 4];
+        match &self.0 {
+            Name::Short(s) => s.encode_utf8(&mut buf) == other,
+            Name::Long(cow) => cow.as_ref() == other,
+        }
+    }
+}
+
+impl std::fmt::Display for Lit<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write as _;
+        match &self.0 {
+            Name::Short(s) => f.write_char(*s),
+            Name::Long(l) => f.write_str(l),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+pub enum Name<'a> {
+    Short(char),
+    Long(Cow<'a, str>),
+}
+
+impl std::fmt::Display for Name<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Name::Short(s) => write!(f, "-{s}"),
+            Name::Long(l) => write!(f, "--{l}"),
+        }
+    }
+}
+
+impl Name<'_> {
+    pub(crate) fn into_owned(self) -> Name<'static> {
+        match self {
+            Name::Short(s) => Name::Short(s),
+            Name::Long(cow) => Name::Long(Cow::Owned(cow.into_owned())),
+        }
+    }
+}
 
 /// This mostly exists to allow Executor and various helpers to depend on visits
 /// without having to expose them to all the parser details
