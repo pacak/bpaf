@@ -7,10 +7,10 @@
 //!
 //! Text is separated with tab symbols into 3 virtual columns, 2 tabs.
 //! 1st column - description and header text. Can grow up to MAX_WIDTH, obeys newline separation
-//! 2nd column - flags with metavars. on rows with them 1st column must be empty (insert an \n if
+//! 2nd column - flags with metavars. On rows with them 1st column must be empty (insert an \n if
 //! it isn't) and contents are padded with 4 spaces, it's width, as long as it is under MAX_TAB
-//! sets the tabstop, does not obey newline separation rules
-//! 3rd column - starts after the tabstop
+//! sets the tabstop, does not obey newline separation rules.
+//! 3rd column - starts after the tabstop.
 
 const T: &str = Style::Text.ansi();
 const L: &str = Style::Literal.ansi();
@@ -19,7 +19,7 @@ const M: &str = Style::Metavar.ansi();
 
 use super::ShortLong;
 use crate::{
-    BoxParser, Flag, Item, Nest, VKind, Visited,
+    BoxParser, Item, VKind, Visited,
     console_writer::{MAX_TAB, Style, Styled, char_width},
     custom_help::Block,
     miniansi::Frag,
@@ -348,21 +348,19 @@ impl<'a> Visitor<'a> for Help<'a> {
             Item::Nested { outer, inner } => {
                 let before = self.mut_buf().len();
 
-                let help = match outer {
-                    Nest::Named(Flag { named, .. }) => {
-                        let Some(name) = named.get_shortlong() else {
-                            // pure env nested parser, makes little sense.
-                            return;
-                        };
-                        self.write_buf(format_args!("{:#} ", name));
-                        named.help
-                    }
-                    Nest::Keyword(keyword) => {
-                        let name = lit_name(&keyword.named.names);
-                        self.write_buf(format_args!("{:#} ", name));
-                        keyword.named.help
-                    }
+                let mut v = OuterNest {
+                    buffers: self,
+                    help: None,
+                    interesting: false,
                 };
+                outer.vi(&mut v);
+                let OuterNest {
+                    interesting, help, ..
+                } = v;
+
+                if !interesting {
+                    return;
+                }
 
                 let mut u = Usage::default();
                 inner.vi(&mut u);
@@ -465,6 +463,43 @@ impl<'a> Visitor<'a> for Help<'a> {
     }
 }
 
+struct OuterNest<'a, 'b> {
+    buffers: &'a mut Help<'b>,
+    help: Option<&'b str>,
+    interesting: bool,
+}
+impl<'a, 'b> Visitor<'b> for OuterNest<'a, 'b> {
+    fn item<'t>(&mut self, item: Item<'b, 't>) {
+        match item {
+            Item::Flag { named } => {
+                let Some(name) = named.get_shortlong() else {
+                    // pure env nested parser, makes little sense.
+                    return;
+                };
+
+                self.buffers.write_buf(format_args!("{:#} ", name));
+                self.help = named.help;
+
+                self.interesting = true;
+            }
+            Item::Command { names, help, .. } => {
+                let name = lit_name(names);
+                self.buffers.write_buf(format_args!("{:#} ", name));
+                self.help = help;
+                self.interesting = true;
+            }
+            _ => {}
+        }
+    }
+
+    fn identify(&self) -> VKind {
+        VKind::Help
+    }
+
+    fn push_group(&mut self, _: VisitGroup) {}
+    fn pop_group(&mut self) {}
+}
+
 impl Help<'_> {
     /// Check if tab width needs to be updated to account for `width`
     ///
@@ -502,20 +537,39 @@ impl Help<'_> {
     }
 
     fn update_place(&mut self, item: &Item) {
+        struct GetPlace {
+            place: Place,
+        }
+        impl Visitor<'_> for GetPlace {
+            fn item<'t>(&mut self, item: Item<'_, 't>) {
+                self.place = match item {
+                    Item::Flag { .. } | Item::Arg { .. } => Place::Named,
+                    Item::Command { .. } => Place::Command,
+                    Item::Positional { .. } => Place::Pos,
+                    _ => return,
+                }
+            }
+
+            fn identify(&self) -> VKind {
+                VKind::Help
+            }
+
+            fn push_group(&mut self, _: VisitGroup) {}
+
+            fn pop_group(&mut self) {}
+        }
+
         if self.depth == 0 {
             self.place = match item {
                 _ if self.in_global > 0 => Place::Global,
                 Item::Flag { .. } | Item::Arg { .. } => Place::Named,
                 Item::Positional { .. } => Place::Pos,
                 Item::Command { .. } => Place::Command,
-                Item::Nested {
-                    outer: Nest::Named(_),
-                    ..
-                } => Place::Named,
-                Item::Nested {
-                    outer: Nest::Keyword(_),
-                    ..
-                } => Place::Command,
+                Item::Nested { outer, .. } => {
+                    let mut gp = GetPlace { place: self.place };
+                    outer.vi(&mut gp);
+                    gp.place
+                }
                 _ => self.place,
             };
         }
