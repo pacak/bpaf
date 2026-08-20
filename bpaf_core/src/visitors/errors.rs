@@ -1,4 +1,4 @@
-use crate::{Flag, Keyword, Lit, Nest, Problem, Visitor, traits::VKind};
+use crate::{Lit, Problem, Visited as _, Visitor, traits::VKind};
 
 use super::*;
 
@@ -48,12 +48,7 @@ impl<'a> Visitor<'a> for IsAcceptedOnce<'a> {
     fn item(&mut self, item: Item<'a, '_>) {
         match item {
             Item::OptionParser { info: _, inner } => inner.vi(self),
-            Item::Flag { named }
-            | Item::Arg { named, .. }
-            | Item::Nested {
-                outer: Nest::Named(Flag { named, .. }),
-                ..
-            } => {
+            Item::Flag { named } | Item::Arg { named, .. } => {
                 if named.names.contains(self.name) {
                     let known = if self.in_many > 0 {
                         KnownName::Many
@@ -63,8 +58,8 @@ impl<'a> Visitor<'a> for IsAcceptedOnce<'a> {
                     self.known = self.known.max(known);
                 }
             }
-            Item::Nested { .. }
-            | Item::Positional { .. }
+            Item::Nested { outer, .. } => outer.vi(self),
+            Item::Positional { .. }
             | Item::Command { .. }
             | Item::Section { .. }
             | Item::Rendered { .. } => {}
@@ -123,12 +118,7 @@ impl<'a> Visitor<'a> for BetterName<'a> {
     fn item(&mut self, item: Item<'a, '_>) {
         match item {
             Item::OptionParser { info: _, inner } => inner.vi(self),
-            Item::Flag { named }
-            | Item::Arg { named, .. }
-            | Item::Nested {
-                outer: Nest::Named(Flag { named, .. }),
-                ..
-            } => {
+            Item::Flag { named } | Item::Arg { named, .. } => {
                 for name in &named.names {
                     let Name::Long(long_possible) = name else {
                         continue;
@@ -140,8 +130,8 @@ impl<'a> Visitor<'a> for BetterName<'a> {
                     }
                 }
             }
-            Item::Nested { .. }
-            | Item::Section { .. }
+            Item::Nested { outer, .. } => outer.vi(self),
+            Item::Section { .. }
             | Item::Rendered { .. }
             | Item::Positional { .. }
             | Item::Command { .. } => {}
@@ -257,15 +247,10 @@ impl Visitor<'_> for IsDDash {
         if self.exists {
             return;
         }
-
         match item {
             Item::OptionParser { info: _, inner } => inner.vi(self),
-            Item::Flag { named }
-            | Item::Arg { named, .. }
-            | Item::Nested {
-                outer: Nest::Named(Flag { named, .. }),
-                ..
-            } => {
+            Item::Nested { outer, .. } => outer.vi(self),
+            Item::Flag { named } | Item::Arg { named, .. } => {
                 for name in &named.names {
                     if let Name::Long(actual) = name
                         && actual == &self.name
@@ -274,8 +259,7 @@ impl Visitor<'_> for IsDDash {
                     }
                 }
             }
-            Item::Nested { .. }
-            | Item::Positional { .. }
+            Item::Positional { .. }
             | Item::Command { .. }
             | Item::Section { .. }
             | Item::Rendered { .. } => {}
@@ -339,6 +323,29 @@ impl<'a> ProblemVisitor<'a> for IsInCommand<'a> {
     }
 }
 
+/// Collect information about nested label for "is in command" visitor
+struct NestedCandidate<'a> {
+    ctx: Option<Candidate<'a>>,
+}
+
+impl<'a> Visitor<'a> for NestedCandidate<'a> {
+    fn item<'t>(&mut self, item: Item<'a, 't>) {
+        self.ctx = match item {
+            Item::Flag { named } => named.names.first().map(Candidate::NamedFlag),
+            Item::Command { names, .. } => names.first().map(Candidate::Keyword),
+            _ => return,
+        }
+    }
+
+    fn identify(&self) -> VKind {
+        VKind::Error
+    }
+
+    fn push_group(&mut self, _: VisitGroup) {}
+
+    fn pop_group(&mut self) {}
+}
+
 impl<'a> Visitor<'a> for IsInCommand<'a> {
     fn item(&mut self, item: Item<'a, '_>) {
         if self.candidate.is_some() {
@@ -353,28 +360,19 @@ impl<'a> Visitor<'a> for IsInCommand<'a> {
                     self.current_ctx = None;
                 }
             }
-            Item::Nested { outer, inner } => match outer {
-                Nest::Named(Flag { named, .. }) => {
-                    if let Some(Candidate::Command(cmd)) = self.current_ctx
-                        && named.names.contains(self.target)
-                    {
-                        self.candidate = Some(Candidate::Command(cmd));
-                        return;
-                    }
-                    if self.current_ctx.is_none() {
-                        self.current_ctx = named.names.first().map(Candidate::NamedFlag);
+            Item::Nested { outer, inner } => {
+                if self.current_ctx.is_none() {
+                    let mut v = NestedCandidate { ctx: None };
+                    outer.vi(&mut v);
+                    if v.ctx.is_some() {
+                        self.current_ctx = v.ctx;
                         inner.vi(self);
                         self.current_ctx = None;
                     }
+                } else {
+                    inner.vi(self);
                 }
-                Nest::Keyword(Keyword { named, .. }) => {
-                    if self.current_ctx.is_none() {
-                        self.current_ctx = named.names.first().map(Candidate::Keyword);
-                        inner.vi(self);
-                        self.current_ctx = None;
-                    }
-                }
-            },
+            }
             Item::Flag { named } | Item::Arg { named, .. } => {
                 if !named.names.contains(self.target) {
                     return;
