@@ -11,3 +11,12 @@ extradocs = []
 [dev-dependencies]
 pretty_assertions = "1.4"
 bpaf = { path = "../bpaf", version = "0.10.0", features = ["derive", "extradocs"] }
+
+
+[[example]]
+name = "named"
+path = "examples/named/combo.rs"
+
+[[example]]
+name = "named_derive"
+path = "examples/named/derive.rs"

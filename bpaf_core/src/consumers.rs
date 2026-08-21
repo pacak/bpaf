@@ -4,6 +4,7 @@ use crate::{
     adapters::PureWith,
     complete::{Completer, complete_value},
     error::MissingItem,
+    macros::example_cd,
     os_str::parse_os_str,
 };
 
@@ -12,6 +13,8 @@ use super::*;
 /// Precursor for named parsers - flags, switches, etc
 ///
 /// Create with [`short`], [`long`] or [`env()`]
+///
+#[doc = example_cd!("named")]
 #[derive(Debug, Clone)]
 pub struct Named {
     pub(crate) names: Vec<Name<'static>>,
@@ -64,7 +67,8 @@ impl Named {
     }
 }
 
-/// Match a named item with a short name: `-v` or `-b name`
+/// A builder for a flag or an option-argument that starts with a short name (`-v`)
+#[doc = example_cd!("named")]
 pub fn short(name: char) -> Named {
     Named {
         names: vec![Name::Short(name)],
@@ -73,7 +77,8 @@ pub fn short(name: char) -> Named {
     }
 }
 
-/// Match a named item with a long name: `--verbose` or `--bin name`
+/// A builder for a flag or an option-argument that starts with a long name (`--flag`)
+#[doc = example_cd!("named")]
 pub fn long<N>(name: N) -> Named
 where
     N: Into<Cow<'static, str>>,
@@ -85,6 +90,8 @@ where
     }
 }
 
+/// A builder for a flag or an option-argument that reads an environment variable
+#[doc = example_cd!("named")]
 pub fn env(name: &'static str) -> Named {
     Named {
         names: Vec::new(),
@@ -94,16 +101,22 @@ pub fn env(name: &'static str) -> Named {
 }
 
 impl Named {
+    /// Add a short name (`-f`) to a flag or an option-argument
+    #[doc = example_cd!("named")]
     pub fn short(mut self, name: char) -> Self {
         self.names.push(Name::Short(name));
         self
     }
 
+    /// Add a long name (`--flag`) to a flag or an option-argument
+    #[doc = example_cd!("named")]
     pub fn long(mut self, name: impl Into<Cow<'static, str>>) -> Self {
         self.names.push(Name::Long(name.into()));
         self
     }
 
+    /// Add an environment variable check to a flag or an option-argument
+    #[doc = example_cd!("named")]
     pub fn env(mut self, name: &'static str) -> Self {
         self.env.push(name);
         self

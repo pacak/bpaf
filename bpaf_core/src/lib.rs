@@ -86,6 +86,9 @@ pub mod api {
     pub mod helpers {
         pub use crate::helpers::Cargo;
     }
+    pub mod precedence {
+        //! blurb about priority
+    }
 }
 
 use crate::{
