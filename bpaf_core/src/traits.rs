@@ -3,7 +3,7 @@
 #![cfg_attr(doc, warn(unused_imports))]
 
 use crate::{
-    Ctx, Error, Exit, Lit, Metavar, Named, Nest,
+    Ctx, Error, Exit, Lit, Metavar, Named,
     adapters::{
         Fallback, FallbackStr, FallbackWith, Global, Group, Guard, Hide, Map, OptionParser,
         Optional, OrExit, Parse, ThenExit, WithOffset,
@@ -394,7 +394,7 @@ pub enum Item<'a, 't> {
     ///
     /// All the inner parsers go under "named" parsers unless [`Item::Section`] moves it elsewhere
     Nested {
-        outer: &'a Nest,
+        outer: &'a dyn Visited,
         inner: &'a dyn Visited,
     },
     Section {

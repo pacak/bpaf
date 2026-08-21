@@ -372,7 +372,7 @@ impl std::fmt::Display for CommandItem<'_> {
 
 #[derive(Clone)]
 pub struct NestedItem<'a> {
-    pub(crate) outer: &'a crate::Nest,
+    pub(crate) outer: &'a dyn Visited,
     pub(crate) inner: &'a dyn Visited,
 }
 
