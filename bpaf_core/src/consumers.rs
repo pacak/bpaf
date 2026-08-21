@@ -148,22 +148,8 @@ impl Named {
 
     pub fn nest<T: 'static, P: Parser<Output = T> + 'static>(self, inner: P) -> Nested<T> {
         Nested {
-            outer: Nest::Named(self.req_flag(())),
+            outer: self.req_flag(()).into_box(),
             inner: inner.into_box(),
-        }
-    }
-}
-
-enum Nest {
-    Named(Flag<()>),
-    Keyword(Keyword<()>),
-}
-
-impl Visited for Nest {
-    fn vi<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        match self {
-            Nest::Named(flag) => flag.vi(visitor),
-            Nest::Keyword(keyword) => keyword.vi(visitor),
         }
     }
 }
@@ -175,17 +161,14 @@ impl Visited for Nest {
 /// Start by creating the inner parser and a [`Named`] or [`Literal`] parser
 /// for the trigger then call [`Named::nest`] or [`Literal::nest`]
 pub struct Nested<T> {
-    outer: Nest,
+    outer: BoxParser<()>,
     inner: BoxParser<T>,
 }
 
 impl<T: 'static> Parser for Nested<T> {
     type Output = T;
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
-        match &self.outer {
-            Nest::Named(named) => named.eval(ctx.clone()).await?,
-            Nest::Keyword(kw) => kw.eval(ctx.clone()).await?,
-        };
+        self.outer.eval(ctx.clone()).await?;
         let inner = ctx.fork(None, &self.inner);
         let scope_start = inner.shared.next_free.get();
         // cursor is now shared; save, advance past trigger, run inner, then restore
@@ -304,7 +287,7 @@ impl Literal {
 
     pub fn nest<T: 'static, P: Parser<Output = T> + 'static>(self, inner: P) -> Nested<T> {
         Nested {
-            outer: Nest::Keyword(self.req_flag(())),
+            outer: self.req_flag(()).into_box(),
             inner: inner.into_box(),
         }
     }
