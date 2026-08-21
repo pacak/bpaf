@@ -114,7 +114,7 @@ impl crate::RawCtx<'_> {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-struct Lit<'a>(pub(crate) ShortLong<'a>);
+pub(crate) struct Lit<'a>(pub(crate) ShortLong<'a>);
 
 impl std::fmt::Display for Lit<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -160,7 +160,7 @@ impl std::fmt::Display for ShortLong<'_> {
 }
 
 // TODO - dedup
-fn lit_name<'a>(names: &'a [crate::Lit<'a>]) -> Lit<'a> {
+pub(crate) fn lit_name<'a>(names: &'a [crate::Lit<'a>]) -> Lit<'a> {
     let mut short = None;
     let mut long = None;
     for n in names {
@@ -403,6 +403,9 @@ impl<'a> Visitor<'a> for Help<'a> {
                             }
                             self.depth += 1;
                         }
+                        Frag::Code(Block::Same) => {
+                            self.depth += 1;
+                        }
                         Frag::Code(Block::EndSection) => {
                             self.depth -= 1;
                         }
@@ -410,6 +413,16 @@ impl<'a> Visitor<'a> for Help<'a> {
                             if self.depth == 0 {
                                 self.place = p;
                             }
+                        }
+                        Frag::Str("\n") => {
+                            // Nested item wraps the inner parser in Block::Same..Block::EndSection
+                            // then, if you write it as usual with writeln!(), you'll get
+                            // "{END}\n{NEXT}" which shows u p as an extra empty line in the
+                            // help output.
+                            //
+                            // Threfore we ignore empty lines between sections...
+                            //
+                            // I don't like it.
                         }
                         Frag::Str(s) => {
                             let buf = self.mut_buf();
@@ -421,9 +434,11 @@ impl<'a> Visitor<'a> for Help<'a> {
                                     self.track_tab(crate::miniansi::text_len(key));
                                 }
                             }
-                            self.mut_buf().push_str(s);
-                            if !s.ends_with('\n') {
-                                self.mut_buf().push('\n');
+                            let buf = self.mut_buf();
+
+                            buf.push_str(s);
+                            if !buf.ends_with('\n') {
+                                buf.push('\n');
                             }
                         }
                     }
