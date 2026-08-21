@@ -136,3 +136,146 @@ macro_rules! make {
     // for positional - (), if there's no constructor - we are making a tuple
     ([pos   $($con:tt)*] [$($fields:ident)*]) => { $($con)* ( $($fields),* ) };
 }
+
+#[cfg(feature = "extradocs")]
+macro_rules! example_encase {
+    ($title:literal, $inner:expr) => {
+        concat!(
+            "<details><summary>",
+            $title,
+            "</summary>\n\n",
+            $inner,
+            "\n\n</details>"
+        )
+    };
+}
+
+#[cfg(feature = "extradocs")]
+macro_rules! example_derive {
+    ($name:literal) => {
+        $crate::macros::example_encase!(
+            "Derive example",
+            concat!(
+                "```no_run\n",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/examples/",
+                    $name,
+                    "/derive.rs"
+                )),
+                "\n```"
+            )
+        )
+    };
+}
+
+#[cfg(feature = "extradocs")]
+macro_rules! example_combo {
+    ($name:literal) => {
+        $crate::macros::example_encase!(
+            "Combinatoric example",
+            concat!(
+                "```no_run\n",
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/examples/",
+                    $name,
+                    "/combo.rs"
+                )),
+                "\n```"
+            )
+        )
+    };
+}
+
+#[cfg(feature = "extradocs")]
+macro_rules! example_readme {
+    ($name:literal) => {
+        concat!(
+            "\n\n",
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/examples/",
+                $name,
+                "/README.md"
+            ))
+        )
+    };
+}
+
+#[cfg(feature = "extradocs")]
+macro_rules! example_output {
+    ($name:literal) => {
+        $crate::macros::example_encase!(
+            "Sample output",
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/examples/",
+                $name,
+                "/OUTPUT.md"
+            ))
+        )
+    };
+}
+
+#[allow(unused_macros)]
+#[cfg(feature = "extradocs")]
+macro_rules! example_c {
+    ($name:literal) => {
+        concat!(
+            $crate::macros::example_combo!($name),
+            $crate::macros::example_output!($name)
+        )
+    };
+}
+
+#[allow(unused_macros)]
+#[cfg(feature = "extradocs")]
+macro_rules! example_d {
+    ($name:literal) => {
+        concat!(
+            $crate::macros::example_readme!($name),
+            $crate::macros::example_derive!($name),
+            $crate::macros::example_outupt!($name)
+        )
+    };
+}
+
+#[cfg(feature = "extradocs")]
+macro_rules! example_cd {
+    ($name:literal) => {
+        concat!(
+            $crate::macros::example_readme!($name),
+            $crate::macros::example_combo!($name),
+            $crate::macros::example_derive!($name),
+            $crate::macros::example_output!($name)
+        )
+    };
+}
+#[cfg(not(feature = "extradocs"))]
+#[allow(unused_macros)]
+macro_rules! example_c {
+    ($dummy:literal) => {
+        ""
+    };
+}
+
+#[cfg(not(feature = "extradocs"))]
+#[allow(unused_macros)]
+macro_rules! example_d {
+    ($dummy:literal) => {
+        ""
+    };
+}
+
+#[cfg(not(feature = "extradocs"))]
+macro_rules! example_cd {
+    ($dummy:literal) => {
+        ""
+    };
+}
+
+#[allow(unused_imports)]
+pub(crate) use {example_c, example_cd, example_d};
+#[cfg(feature = "extradocs")]
+pub(crate) use {example_combo, example_derive, example_encase, example_output, example_readme};
