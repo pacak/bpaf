@@ -5,6 +5,9 @@ edition = "2024"
 
 [dependencies]
 
+[features]
+extradocs = []
 
 [dev-dependencies]
 pretty_assertions = "1.4"
+bpaf = { path = "../bpaf", version = "0.10.0", features = ["derive", "extradocs"] }

@@ -1,3 +1,4 @@
+/*
 //!
 //! All parsers in *bpaf* consist of primitive parsers enhanced with [`Parser`] trait and glued
 //! together with [`construct!`] macro. Primitive parsers start here. Pick how your item
@@ -467,7 +468,7 @@
 //! </pre>
 //! </div>
 //! </div>
-
+*/
 pub use bpaf_core::*;
 #[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
