@@ -7,9 +7,11 @@ use crate::{
 
 #[cfg_attr(test, derive(Eq, PartialEq))]
 #[derive(Debug, Copy, Clone)]
-pub enum Block {
+pub(crate) enum Block {
     Start(Place),
     EndSection,
+    /// Open a section without adjusting the place. Needed for the nested parser
+    Same,
 }
 
 pub const T: &str = Style::Text.ansi();
@@ -30,6 +32,7 @@ impl TryFrom<u32> for Block {
             18 => Ok(Block::Start(Place::Usage)),
             19 => Ok(Block::Start(Place::Header)),
             20 => Ok(Block::Start(Place::Footer)),
+            21 => Ok(Block::Same),
             _ => Err(()),
         }
     }
@@ -44,6 +47,7 @@ pub const DESCR: &str = "\u{1B}[17m";
 pub const USAGE: &str = "\u{1B}[18m";
 pub const HEADER: &str = "\u{1B}[19m";
 pub const FOOTER: &str = "\u{1B}[20m";
+pub(crate) const SAME: &str = "\u{1B}[21m";
 
 /// Wraps a parser and replaces its help output with a static string.
 pub struct HelpLiteral<P> {
@@ -241,7 +245,6 @@ impl<'a> FlagItem<'a> {
 impl std::fmt::Display for FlagItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{NAMED}")?;
-
         if let Some(sl) = self.named.get_shortlong() {
             write!(f, "{sl:#}")?;
         }
@@ -278,6 +281,7 @@ impl<'a> ArgItem<'a> {
 
 impl std::fmt::Display for ArgItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{NAMED}")?;
         if let Some(sl) = self.named.get_shortlong() {
             write!(f, "{sl:#}")?;
             write!(f, "={}", self.meta)?;
@@ -308,6 +312,7 @@ impl<'a> PositionalItem<'a> {
 
 impl std::fmt::Display for PositionalItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{POS}")?;
         write!(f, "    {}", self.meta)?;
         write!(f, "\t")?;
         if let Some(help) = self.help {
@@ -349,6 +354,7 @@ impl std::fmt::Debug for CommandItem<'_> {
 
 impl std::fmt::Display for CommandItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{CMD}")?;
         let name = self
             .names
             .iter()
@@ -399,26 +405,75 @@ impl std::fmt::Debug for NestedItem<'_> {
     }
 }
 
+struct NestedWriter<'w, 'i> {
+    f: &'w mut std::fmt::Formatter<'i>,
+    wrote: bool,
+    usage: String,
+}
+
+impl Visitor<'_> for NestedWriter<'_, '_> {
+    fn item<'t>(&mut self, item: Item<'_, 't>) {
+        match item {
+            Item::Flag { named } => {
+                let Some(sl) = named.get_shortlong() else {
+                    return;
+                };
+                _ = write!(self.f, "{NAMED}{sl:#} {}", self.usage);
+                if let Some(help) = named.help {
+                    _ = write!(self.f, "\t{help}");
+                }
+            }
+            Item::Command { names, help, .. } => {
+                let name = crate::visitors::help::lit_name(names);
+                _ = write!(self.f, "{CMD}{name:#} {}", self.usage);
+                if let Some(help) = help {
+                    _ = write!(self.f, "\t{help}");
+                }
+            }
+            _ => return,
+        }
+        self.wrote = true;
+        _ = writeln!(self.f);
+    }
+
+    fn identify(&self) -> VKind {
+        VKind::Help
+    }
+
+    fn push_group(&mut self, _: VisitGroup) {}
+
+    fn pop_group(&mut self) {}
+}
+
 impl std::fmt::Display for NestedItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.outer {
-            crate::Nest::Named(flag) => {
-                if let Some(sl) = flag.named.get_shortlong() {
-                    write!(f, "{sl:#}")?;
-                }
-                write!(f, "\t")?;
-                if let Some(help) = flag.named.help {
-                    write!(f, "{help}")?;
-                }
-            }
-            crate::Nest::Keyword(lit) => {
-                if let Some(name) = lit.named.names.first() {
-                    let l = Style::Literal.ansi();
-                    let t = Style::Text.ansi();
-                    write!(f, "    {l}{name}{t}")?;
-                }
+        let mut u = crate::visitors::usage::Usage::default();
+        self.inner.vi(&mut u);
+        let mut usage = String::new();
+        u.render_to(&mut usage);
+
+        let mut nw = NestedWriter {
+            f,
+            wrote: false,
+            usage,
+        };
+        self.outer.vi(&mut nw);
+
+        let wrote = nw.wrote;
+        if !wrote {
+            return Ok(());
+        }
+
+        let items = self.items();
+        let count = items.0.len();
+        write!(f, "{SAME}")?;
+        for (ix, inner) in items.0.iter().enumerate() {
+            write!(f, "{inner}")?;
+            if ix + 1 < count {
+                writeln!(f)?;
             }
         }
+        write!(f, "{END}")?;
         Ok(())
     }
 }
@@ -455,11 +510,9 @@ impl std::fmt::Debug for SectionItem<'_> {
 
 impl std::fmt::Display for SectionItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        const H: &str = Style::Header.ansi();
-        const T: &str = Style::Text.ansi();
-        writeln!(f, "{H}{}{T}", self.title)?;
+        writeln!(f, "{CUSTOM}{H}{}{T}", self.title)?;
         if let Some(descr) = self.descr {
-            writeln!(f, "{descr}")?;
+            f.write_str(descr)?;
         }
         Ok(())
     }

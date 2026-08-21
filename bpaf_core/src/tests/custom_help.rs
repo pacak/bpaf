@@ -3,6 +3,37 @@ use crate::{help::custom::*, *};
 use std::fmt::Write;
 
 #[test]
+fn custom_help_nested_both() {
+    let a = long("alpha")
+        .help("outer a")
+        .nest(positional::<u32>("A").help("inner a"))
+        .help_callback(|h| h.to_string());
+    let b = literal("beta")
+        .help("outer b")
+        .nest(positional::<i32>("B").help("inner b"))
+        .help_callback(|h| h.to_string());
+    let parser = (a, b).to_options();
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "Usage: app --alpha {A} COMMAND ...
+
+Available options:
+        --alpha A  outer a
+    A              inner a
+    -h, --help     Prints help information
+
+Available commands:
+    beta B         outer b
+    B              inner b
+";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("--alpha 4 beta 12").unwrap();
+    assert_eq!(r, (4, 12));
+}
+
+#[test]
 fn custom_help_section() {
     let a = short('a').help("A flag").req_flag(()).help_literal(
         "\u{1B}[15m\u{1b}[4mExamples\u{1b}[0m\n  -a\tA flag\n  --flag\tDoes something\u{1B}[16m",
