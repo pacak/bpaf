@@ -1,57 +1,14 @@
-[package]
-name = "bpaf"
-version = "0.10.0"
-edition = "2024"
-categories = ["command-line-interface"]
-description = "A simple Command Line Argument Parser with parser combinators"
-keywords = ["args", "arguments", "cli", "parser", "parse"]
-authors = [ "Michael Baykov <manpacket@gmail.com>" ]
-readme = "README.md"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/pacak/bpaf"
-rust-version = "1.85"
-include = [
-  "src/**/*",
-  "Cargo.toml",
-  "README.md",
-  "LICENSE-APACHE",
-  "LICENSE-MIT",
-  "examples/**/*"
+[workspace]
+resolver = "3"
+
+members =  [
+    "./bpaf",
+    "./bpaf_core",
+    "./bpaf_derive",
+#    "./bpaf_cauwugo",
+    "./satis",
 ]
 
-
-[dependencies]
-bpaf_core = { path = "./bpaf_core", version = "=0.10.0" }
-bpaf_derive = { path = "./bpaf_derive", version = "=0.10.0", optional = true }
-
-[dev-dependencies]
-bpaf = { path = ".",  features = ["derive", "extradocs"] }
-
-
-[package.metadata.docs.rs]
-features = ["unstable-docs"]
-cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
-rustdoc-args = ["--generate-link-to-definition"]
-
-
-[features]
-derive = ["bpaf_derive"]
-extradocs = []
-autocomplete = []
-
-# this feature is used for local development to make it easier to generate documentation
-unstable-docs = ["derive", "extradocs", "autocomplete"]
 
 [workspace.metadata.cauwugo]
 bpaf = true
-
-[workspace]
-members =  [
-    ".",
-    "./bpaf_cauwugo",
-    "./bpaf_core",
-    "./bpaf_derive",
-    "./bpaf_cauwugo",
-    "./comptester",
-    "./satis",
-]
