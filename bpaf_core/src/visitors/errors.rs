@@ -1,4 +1,4 @@
-use crate::{Lit, Problem, Visited as _, Visitor, traits::VKind};
+use crate::{Lit, Problem, Visitor, traits::VKind};
 
 use super::*;
 

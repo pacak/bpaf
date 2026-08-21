@@ -154,7 +154,7 @@ impl Named {
     }
 }
 
-pub enum Nest {
+enum Nest {
     Named(Flag<()>),
     Keyword(Keyword<()>),
 }

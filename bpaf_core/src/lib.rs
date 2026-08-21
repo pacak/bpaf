@@ -206,8 +206,8 @@ pub use crate::{
     completions::CompHelp,
     console_writer::{Colorscheme, Style},
     consumers::{
-        ArgumentLike, Flag, Keyword, Literal, Named, Nest, env, leftovers, literal, long,
-        positional, pure, pure_with, short,
+        ArgumentLike, Flag, Keyword, Literal, Named, env, leftovers, literal, long, positional,
+        pure, pure_with, short,
     },
     helpers::cargo_helper,
     traits::{Leaf, Parser, Visited},
