@@ -827,14 +827,16 @@ impl<T: 'static> PosixPos<T> {
     }
 }
 
-/// In case of conflicts it is excluded from "earlier running parser" wins
-/// and it's position in the selection takes a priority. Including it in conflict resolution will
-/// make it so any branch containing `pure` anywhere automatically advances.
+/// Make a parser that produces a fixed value
+///
+#[doc = example_cd!("pure")]
 pub fn pure<T: Clone + 'static>(value: T) -> Pure<T> {
     Pure { value }
 }
 
-/// A parser that produces a value `T` without consuming anything
+/// A parser that produces a fixed value
+///
+#[doc = example_cd!("pure")]
 ///
 /// Created with [`pure`]
 pub struct Pure<T> {

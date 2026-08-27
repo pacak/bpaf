@@ -84,3 +84,11 @@ path = "examples/posix/combo.rs"
 [[example]]
 name = "posix_derive"
 path = "examples/posix/derive.rs"
+
+[[example]]
+name = "pure"
+path = "examples/pure/combo.rs"
+
+[[example]]
+name = "pure_derive"
+path = "examples/pure/derive.rs"
