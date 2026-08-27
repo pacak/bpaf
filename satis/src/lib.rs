@@ -388,6 +388,10 @@ impl Snippet {
         &self.prompt
     }
 
+    pub fn is_execution(&self) -> bool {
+        !self.prompt.contains("<TAB>")
+    }
+
     pub fn output(&self) -> &str {
         if let Stage::Mismatch { actual } = &self.stage {
             actual.as_str()
@@ -664,8 +668,44 @@ impl Shell {
 
 impl Snippet {
     pub fn check(&mut self, binary: &Binary, timeout: Duration) -> anyhow::Result<bool> {
-        let mut session = Session::new(self, binary)?;
-        session.check_snippet(self, timeout)
+        if self.prompt.contains("<TAB>") {
+            let mut session = Session::new(self, binary)?;
+            session.check_snippet(self, timeout)
+        } else {
+            self.run_execution(binary)
+        }
+    }
+
+    /// Run the snippet as a plain execution test.
+    pub fn run_execution(&mut self, binary: &Binary) -> anyhow::Result<bool> {
+        let mut cmd = Command::new(&binary.name);
+        cmd.env("PATH", &binary.path);
+
+        let cmd_line = &self.prompt.trim();
+        let args: Vec<&str> = cmd_line.split_whitespace().collect();
+        cmd.args(&args[1..]);
+
+        let output = cmd
+            .output()
+            .with_context(|| format!("running {:?} with args {:?}", binary.name, args))?;
+
+        let mut raw = output.stdout;
+        raw.extend_from_slice(&output.stderr);
+
+        let mut actual = String::new();
+        for line in String::from_utf8_lossy(&raw).lines() {
+            actual.push_str(line.trim_end());
+            actual.push('\n');
+        }
+        actual.truncate(actual.trim_end().len());
+
+        let matches = self.expected == actual;
+        self.stage = if matches {
+            Stage::Matches
+        } else {
+            Stage::Mismatch { actual }
+        };
+        Ok(matches)
     }
 
     pub fn run_raw(&self, binary: &Binary) -> anyhow::Result<String> {

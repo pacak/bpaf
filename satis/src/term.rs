@@ -248,8 +248,7 @@ impl Session {
     ) -> anyhow::Result<bool> {
         let prompt = snippet.prompt.replace("<TAB>", "\t");
         if prompt == snippet.prompt {
-            println!("Ignoring the execution test for now");
-            return Ok(false);
+            return Ok(true);
         }
 
         let cache = crate::load_cached(&self.bin_name, &snippet.prompt, &snippet.shell, true)?;

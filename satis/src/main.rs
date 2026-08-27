@@ -82,6 +82,19 @@ fn main() -> anyhow::Result<()> {
         std::process::exit(0);
     }
 
+    // execution tests are fast (there's no blocking) and there's no session to reuse
+    // just run all of them at once.
+    mds.iter_mut()
+        .flat_map(|x| x.snippets_mut())
+        .filter(|s| s.is_execution())
+        .collect::<Vec<_>>()
+        .par_iter_mut()
+        .try_for_each(|exec| {
+            let bin = &binaries[exec.bin()];
+            exec.run_execution(bin)?;
+            anyhow::Ok(())
+        })?;
+
     if opts.reuse {
         let mut groups = build_groups(
             mds.iter_mut()
