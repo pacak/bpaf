@@ -92,3 +92,11 @@ path = "examples/pure/combo.rs"
 [[example]]
 name = "pure_derive"
 path = "examples/pure/derive.rs"
+
+[[example]]
+name = "pure_with"
+path = "examples/pure_with/combo.rs"
+
+[[example]]
+name = "pure_with_derive"
+path = "examples/pure_with/derive.rs"

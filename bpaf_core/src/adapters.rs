@@ -1,13 +1,12 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 use crate::{
-    Ctx, Error, Exit, Id, Item, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem, RawCtx,
-    Scope, VKind, Visited,
+    Ctx, Error, Exit, Item, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem, RawCtx, VKind,
+    Visited,
     args::Args,
     complete::handle_subparser_complete,
     error::MissingItem,
     info::*,
     traits::{BoxParser, Leaf, VisitGroup},
-    r#yield,
 };
 use std::{borrow::Cow, marker::PhantomData};
 
@@ -581,33 +580,6 @@ where
         self.inner.visit(visitor);
         visitor.pop_group();
     }
-}
-
-/// A parser that produces a value by calling a closure
-pub struct PureWith<F> {
-    pub(crate) act: F,
-}
-
-impl<T: 'static, E: ToString + 'static, F: Fn() -> Result<T, E>> Parser for PureWith<F> {
-    type Output = T;
-    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
-        let id = ctx.shared.current_task.borrow().id;
-        let scope = Scope {
-            start: id,
-            end: Id(id.0 + 1),
-        };
-        ctx.early_exit.borrow_mut().insert(scope);
-        r#yield().await;
-        ctx.early_exit.borrow_mut().remove(&scope);
-        (self.act)().map_err(|err| {
-            let problem = Problem::Dynamic {
-                err: err.to_string(),
-            };
-            Error::Problem(ctx.cursor().get(), problem)
-        })
-    }
-
-    fn visit<'a>(&'a self, _visitor: &mut dyn crate::Visitor<'a>) {}
 }
 
 pub struct Group<P> {

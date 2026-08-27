@@ -1,7 +1,6 @@
 use std::{marker::PhantomData, str::FromStr};
 
 use crate::{
-    adapters::PureWith,
     complete::{Completer, complete_value},
     error::MissingItem,
     macros::example_cd,
@@ -861,12 +860,46 @@ impl<T: 'static + Clone> Parser for Pure<T> {
     fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
 }
 
+/// Make a parser that produces a value from a closure call
+///
+#[doc = example_cd!("pure_with")]
 pub fn pure_with<T, F, E>(act: F) -> PureWith<F>
 where
     F: Fn() -> Result<T, E>,
     E: ToString,
 {
     PureWith { act }
+}
+
+/// A parser that produces a value by calling a closure
+///
+#[doc = example_cd!("pure_with")]
+///
+/// Created with [`pure_with`]
+pub struct PureWith<F> {
+    pub(crate) act: F,
+}
+
+impl<T: 'static, E: ToString + 'static, F: Fn() -> Result<T, E>> Parser for PureWith<F> {
+    type Output = T;
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
+        let id = ctx.shared.current_task.borrow().id;
+        let scope = Scope {
+            start: id,
+            end: Id(id.0 + 1),
+        };
+        ctx.early_exit.borrow_mut().insert(scope);
+        r#yield().await;
+        ctx.early_exit.borrow_mut().remove(&scope);
+        (self.act)().map_err(|err| {
+            let problem = Problem::Dynamic {
+                err: err.to_string(),
+            };
+            Error::Problem(ctx.cursor().get(), problem)
+        })
+    }
+
+    fn visit<'a>(&'a self, _visitor: &mut dyn crate::Visitor<'a>) {}
 }
 
 /// Capture all remaining unrecognized/unparsed items
