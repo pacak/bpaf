@@ -251,6 +251,13 @@ impl Session {
             return Ok(true);
         }
 
+        if !snippet.envs.is_empty() {
+            panic!(
+                "Setting environment variables in completion tests is not supported yet: {:?}",
+                snippet.envs
+            );
+        }
+
         let cache = crate::load_cached(&self.bin_name, &snippet.prompt, &snippet.shell, true)?;
 
         self.reset_screen()?;

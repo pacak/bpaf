@@ -341,6 +341,8 @@ pub struct Snippet {
     ///
     /// Prompts with `<TAB>` present are completion tests, without it are output tests
     prompt: String,
+    /// Environment variables to set before running the process
+    envs: Vec<(String, String)>,
     /// Expected to output
     expected: String,
     stage: Stage,
@@ -359,6 +361,7 @@ impl Snippet {
         Self {
             shell: Shell::Bash,
             prompt: String::new(),
+            envs: Vec::new(),
             expected: String::new(),
             stage: Stage::Pending,
             comment: None,
@@ -428,13 +431,18 @@ impl std::fmt::Display for Snippet {
         let Snippet {
             shell,
             prompt,
+            envs,
             expected,
             stage,
             comment: _,
         } = self;
 
         writeln!(f, "```console")?;
-        writeln!(f, "{shell} {prompt}")?;
+        write!(f, "{shell}")?;
+        for (k, v) in envs {
+            write!(f, " {k}={v}")?;
+        }
+        writeln!(f, " {prompt}")?;
 
         const RED: &str = "\x1b[0;31m";
         const GREEN: &str = "\x1b[0;32m";
@@ -482,8 +490,9 @@ impl std::fmt::Display for Md {
     }
 }
 
+type EnvVars = Vec<(String, String)>;
 impl Shell {
-    fn parse(line: &str) -> anyhow::Result<(Shell, &str)> {
+    fn parse(line: &str) -> anyhow::Result<(Shell, EnvVars, &str)> {
         let Some((shell, rest)) = line.split_once(|c: char| ['$', '>', '%'].contains(&c)) else {
             anyhow::bail!(
                 "Line {line:?} should start with a shell followed by a `$ `, `> ` or `%`"
@@ -495,7 +504,32 @@ impl Shell {
             "zsh" => Shell::Zsh,
             _ => anyhow::bail!("Only bash, fish and zsh are supported"),
         };
-        Ok((shell, rest.trim_start()))
+        let rest = rest.trim_start();
+        let (envs, command) = parse_envs(rest);
+        Ok((shell, envs, command))
+    }
+}
+
+/// Parse leading `KEY=VALUE` tokens into environment variables.
+fn parse_envs(mut rest: &str) -> (Vec<(String, String)>, &str) {
+    let mut envs = Vec::new();
+    loop {
+        let trimmed = rest.trim_start();
+        if trimmed.is_empty() {
+            return (envs, trimmed);
+        }
+        let tok_end = trimmed.find(char::is_whitespace).unwrap_or(trimmed.len());
+        let tok = &trimmed[..tok_end];
+        if !tok.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_') {
+            return (envs, trimmed);
+        }
+        match tok.split_once('=') {
+            Some((key, val)) => {
+                envs.push((key.to_string(), val.to_string()));
+                rest = &trimmed[tok_end..];
+            }
+            None => return (envs, trimmed),
+        }
     }
 }
 
@@ -535,6 +569,7 @@ impl Md {
                     expected,
                     shell,
                     prompt,
+                    envs,
                     stage: _,
                     comment: _,
                 }) => match snip_stage {
@@ -545,8 +580,9 @@ impl Md {
                                 path = path.to_string_lossy()
                             );
                         } else {
-                            let (sh, pr) = Shell::parse(line)?;
+                            let (sh, env, pr) = Shell::parse(line)?;
                             *shell = sh;
+                            *envs = env;
                             *prompt = pr.to_string();
                             snip_stage = SnipStage::Expected;
                         }
@@ -613,23 +649,40 @@ mod tests {
     use crate::Shell;
     #[test]
     fn shell_bash() {
-        let (sh, ac) = Shell::parse("bash$ ls -<TAB>").unwrap();
+        let (sh, envs, ac) = Shell::parse("bash$ ls -<TAB>").unwrap();
         assert_eq!(sh, Shell::Bash);
+        assert!(envs.is_empty());
         assert_eq!(ac, "ls -<TAB>");
     }
 
     #[test]
     fn shell_fish() {
-        let (sh, ac) = Shell::parse("fish> ls -<TAB>").unwrap();
+        let (sh, envs, ac) = Shell::parse("fish> ls -<TAB>").unwrap();
         assert_eq!(sh, Shell::Fish);
+        assert!(envs.is_empty());
         assert_eq!(ac, "ls -<TAB>");
     }
 
     #[test]
     fn shell_zsh() {
-        let (sh, ac) = Shell::parse("zsh% ls -<TAB>").unwrap();
+        let (sh, envs, ac) = Shell::parse("zsh% ls -<TAB>").unwrap();
         assert_eq!(sh, Shell::Zsh);
+        assert!(envs.is_empty());
         assert_eq!(ac, "ls -<TAB>");
+    }
+
+    #[test]
+    fn parse_envs_multiple_and_value_with_eq() {
+        let (sh, envs, ac) = Shell::parse("bash$ A=1 B=two=three echo hi").unwrap();
+        assert_eq!(sh, Shell::Bash);
+        assert_eq!(
+            envs,
+            vec![
+                ("A".to_string(), "1".to_string()),
+                ("B".to_string(), "two=three".to_string()),
+            ]
+        );
+        assert_eq!(ac, "echo hi");
     }
 }
 
@@ -680,6 +733,9 @@ impl Snippet {
     pub fn run_execution(&mut self, binary: &Binary) -> anyhow::Result<bool> {
         let mut cmd = Command::new(&binary.name);
         cmd.env("PATH", &binary.path);
+        for (k, v) in &self.envs {
+            cmd.env(k, v);
+        }
 
         let cmd_line = &self.prompt.trim();
         let args: Vec<&str> = cmd_line.split_whitespace().collect();
@@ -711,6 +767,9 @@ impl Snippet {
     pub fn run_raw(&self, binary: &Binary) -> anyhow::Result<String> {
         let mut cmd = Command::new(&binary.name);
         cmd.env("PATH", &binary.path);
+        for (k, v) in &self.envs {
+            cmd.env(k, v);
+        }
 
         let mut cmd_line = self.prompt.as_str();
         while let Some(stripped) = cmd_line.strip_suffix("<TAB>") {
@@ -789,7 +848,11 @@ impl Md {
                         _ => snippet.expected.as_str(),
                     };
                     writeln!(out, "```console")?;
-                    writeln!(out, "{} {}", snippet.shell, snippet.prompt)?;
+                    write!(out, "{}", snippet.shell)?;
+                    for (k, v) in &snippet.envs {
+                        write!(out, " {k}={v}")?;
+                    }
+                    writeln!(out, " {}", snippet.prompt)?;
                     writeln!(out, "{expected}\n```")?;
                 }
             }
