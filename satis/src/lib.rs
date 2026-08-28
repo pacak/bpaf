@@ -23,6 +23,23 @@ pub struct FileOp {
 /// File operations
 ///
 /// Parses a list of files, each file can be followed by zero or more indices
+fn find_md_files(dir: &std::path::Path) -> Result<Vec<PathBuf>, String> {
+    let mut result = Vec::new();
+    let entries = std::fs::read_dir(dir)
+        .map_err(|e| format!("Failed to read directory {dir:?}: {e}"))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read directory entry in {dir:?}: {e}"))?;
+        let path = entry.path();
+        if path.is_dir() {
+            result.extend(find_md_files(&path)?);
+        } else if path.extension().is_some_and(|e| e == "md") {
+            result.push(path);
+        }
+    }
+    result.sort();
+    Ok(result)
+}
+
 pub fn parse_file_op() -> impl bpaf::Parser<Vec<FileOp>> {
     fn parse_file_set(xs: Vec<std::ffi::OsString>) -> Result<Vec<FileOp>, String> {
         let mut res = Vec::new();
@@ -30,24 +47,42 @@ pub fn parse_file_op() -> impl bpaf::Parser<Vec<FileOp>> {
         let mut indices = Vec::new();
 
         while let Some(file) = xs.get(ix) {
-            let file = PathBuf::from(file);
-            if file.extension().is_none_or(|e| e != "md") {
-                return Err(format!("Expected an .md file, got {file:?}"));
-            }
-            while let Some(value) = xs
-                .get(ix + 1)
-                .and_then(|v| v.to_str())
-                .and_then(|v| v.parse::<usize>().ok())
-            {
-                indices.push(value);
-                ix += 1;
-            }
+            let path = PathBuf::from(file);
 
-            ix += 1;
-            res.push(FileOp {
-                file,
-                indices: (!indices.is_empty()).then_some(std::mem::take(&mut indices)),
-            });
+            if path.is_dir() {
+                if !indices.is_empty() {
+                    return Err(format!("Indices are not supported after directory {path:?}"));
+                }
+                let md_files = find_md_files(&path)?;
+                if md_files.is_empty() {
+                    return Err(format!("No .md files found in directory {path:?}"));
+                }
+                for md_file in md_files {
+                    res.push(FileOp {
+                        file: md_file,
+                        indices: None,
+                    });
+                }
+                ix += 1;
+            } else {
+                if path.extension().is_none_or(|e| e != "md") {
+                    return Err(format!("Expected an .md file, got {path:?}"));
+                }
+                while let Some(value) = xs
+                    .get(ix + 1)
+                    .and_then(|v| v.to_str())
+                    .and_then(|v| v.parse::<usize>().ok())
+                {
+                    indices.push(value);
+                    ix += 1;
+                }
+
+                ix += 1;
+                res.push(FileOp {
+                    file: path,
+                    indices: (!indices.is_empty()).then_some(std::mem::take(&mut indices)),
+                });
+            }
         }
 
         if res.is_empty() {
@@ -57,7 +92,7 @@ pub fn parse_file_op() -> impl bpaf::Parser<Vec<FileOp>> {
     }
     use bpaf::*;
     positional::<std::ffi::OsString>("FILE/IX")
-        .help("One or more files, each file can be followed by zero or more indices")
+        .help("One or more files or directories, each file can be followed by zero or more indices")
         .many()
         .parse(parse_file_set)
 }
