@@ -80,7 +80,7 @@ impl ToTokens for Consumer {
             Consumer::Any {
                 metavar, ty, check, ..
             } => match ty {
-                Some(ty) => quote!(::bpaf::any::<#ty, _, _>(#metavar, #check)),
+                Some((k, t)) => quote!(::bpaf::any::<#k, #t>(#metavar, #check)),
                 None => quote!(::bpaf::any(#metavar, #check)),
             },
             Consumer::Argument { metavar, ty, .. } => {
@@ -252,9 +252,7 @@ impl StructField {
 
         let shape = split_type(&ty);
 
-        if let Consumer::Argument { ty, .. }
-        | Consumer::Positional { ty, .. }
-        | Consumer::Any { ty, .. } = &mut cons
+        if let Consumer::Argument { ty, .. } | Consumer::Positional { ty, .. } = &mut cons
             && ty.is_none()
         {
             match &shape {

@@ -15,6 +15,7 @@ use crate::{
 };
 
 #[inline(never)]
+/// Parse an optional turbofish with a single parameter
 fn type_fish(input: ParseStream) -> Result<Option<Type>> {
     Ok(if input.peek(token::Colon) {
         input.parse::<token::Colon>()?;
@@ -23,6 +24,23 @@ fn type_fish(input: ParseStream) -> Result<Option<Type>> {
         let ty = input.parse::<Type>()?;
         input.parse::<token::Gt>()?;
         Some(ty)
+    } else {
+        None
+    })
+}
+
+#[inline(never)]
+/// Parse an optional turbofish with two parameters
+fn type_fish2(input: ParseStream) -> Result<Option<(Type, Type)>> {
+    Ok(if input.peek(token::Colon) {
+        input.parse::<token::Colon>()?;
+        input.parse::<token::Colon>()?;
+        input.parse::<token::Lt>()?;
+        let first: Type = input.parse()?;
+        input.parse::<token::Comma>()?;
+        let second: Type = input.parse()?;
+        input.parse::<token::Gt>()?;
+        Some((first, second))
     } else {
         None
     })
@@ -53,7 +71,7 @@ pub enum Consumer {
     },
     Any {
         metavar: LitStr,
-        ty: Option<Type>,
+        ty: Option<(Type, Type)>,
         check: Box<Expr>,
         span: Span,
     },
@@ -452,7 +470,7 @@ impl Consumer {
             let metavar = parse_opt_metavar(input)?;
             Consumer::Positional { metavar, ty, span }
         } else if kw == "any" {
-            let ty = type_fish(input)?;
+            let ty = type_fish2(input)?;
             let (metavar, check) = parse_arg2(input)?;
             Consumer::Any {
                 metavar,
