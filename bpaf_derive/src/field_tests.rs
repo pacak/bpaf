@@ -719,7 +719,7 @@ fn any_field_1() {
         field: OsString
     };
     let output = quote! {
-        ::bpaf::any::<OsString, _, _>("ARG", Some).help("help")
+        ::bpaf::any("ARG", Some).help("help")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -732,7 +732,7 @@ fn unnamed_field_with_ignore_rustdoc() {
         String
     };
     let output = quote! {
-        ::bpaf::any::<String, _, _>("FOO", Some)
+        ::bpaf::any("FOO", Some)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -745,7 +745,7 @@ fn any_field_2() {
         String
     };
     let output = quote! {
-        ::bpaf::any::<String, _, _>("FOO", Some).help("help")
+        ::bpaf::any("FOO", Some).help("help")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -758,7 +758,7 @@ fn any_field_3() {
         Vec<String>
     };
     let output = quote! {
-        ::bpaf::any::<String, _, _>("FOO", Some).help("help").many()
+        ::bpaf::any("FOO", Some).help("help").many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -771,7 +771,7 @@ fn any_field_4() {
         Vec<OsString>
     };
     let output = quote! {
-        ::bpaf::any::<OsString, _, _>("FOO", Some).help("help").many()
+        ::bpaf::any("FOO", Some).help("help").many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -784,7 +784,7 @@ fn any_field_custom_help() {
         Vec<OsString>
     };
     let output = quote! {
-        ::bpaf::any::<OsString, _, _>("FOO", Some).help(custom_help).many()
+        ::bpaf::any("FOO", Some).help(custom_help).many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -797,7 +797,7 @@ fn any_field_5() {
         Vec<OsString>
     };
     let output = quote! {
-        ::bpaf::any::<OsString, _, _>("FOO", check).help("help").many()
+        ::bpaf::any("FOO", check).help("help").many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -810,7 +810,7 @@ fn any_field_many_custom_help() {
         Vec<OsString>
     };
     let output = quote! {
-        ::bpaf::any::<OsString, _, _>("FOO", check).help(custom_help).many()
+        ::bpaf::any("FOO", check).help(custom_help).many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -1012,11 +1012,24 @@ fn raw_literal() {
 #[test]
 fn any_anywhere() {
     let input: NamedField = parse_quote! {
-        #[bpaf(any::<isize>("LIMIT", isize_to_usize), anywhere)]
+        #[bpaf(any::<_, isize>("LIMIT", isize_to_usize), anywhere)]
         num: isize
     };
     let output = quote! {
-        ::bpaf::any::<isize, _, _>("LIMIT", isize_to_usize).anywhere()
+        ::bpaf::any::<_, isize>("LIMIT", isize_to_usize).anywhere()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn any_two_turbofish() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(any::<&str, String>("FOO", check))]
+        /// help
+        String
+    };
+    let output = quote! {
+        ::bpaf::any::<&str, String>("FOO", check).help("help")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
