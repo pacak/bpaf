@@ -89,6 +89,12 @@ pub mod api {
     pub mod precedence {
         //! blurb about priority
     }
+    pub mod metavar {
+        //! blurb about metavar rules
+    }
+    pub mod help {
+        //! blurb about help rules
+    }
 }
 
 use crate::{

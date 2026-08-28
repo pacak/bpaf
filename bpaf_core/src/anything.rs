@@ -5,10 +5,14 @@ use crate::{
     complete::Completer,
     consumers::WithComplete,
     error::Error,
+    macros::example_cd,
     os_str::parse_os_str,
     traits::{Item, Leaf, Visitor},
 };
 
+#[doc = example_cd!("any")]
+///
+/// This `struct` is created by the [`any`] function.
 pub struct Anything<T> {
     meta: Metavar,
     help: Option<&'static str>,
@@ -67,6 +71,8 @@ where
     }
 }
 
+/// Parse a single arbitrary item from a command line
+#[doc = example_cd!("any")]
 pub fn any<K, T: 'static>(meta: &'static str, check: impl AnyCheck<K, T>) -> Anything<T> {
     let join = Rc::new(Cell::new(None));
     Anything {

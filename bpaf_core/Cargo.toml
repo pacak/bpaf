@@ -20,3 +20,11 @@ path = "examples/named/combo.rs"
 [[example]]
 name = "named_derive"
 path = "examples/named/derive.rs"
+
+[[example]]
+name = "any"
+path = "examples/any/combo.rs"
+
+[[example]]
+name = "any_derive"
+path = "examples/any/derive.rs"
