@@ -1,5 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{ToTokens, quote};
+use syn::parse_quote;
 use syn::{
     Attribute, Error, Expr, Ident, LitChar, LitStr, Path, Result, Type,
     parse::{Parse, ParseStream},
@@ -475,6 +476,16 @@ impl Consumer {
             Consumer::Any {
                 metavar,
                 ty,
+                check,
+                span,
+            }
+        } else if kw == "any_from_str" {
+            let metavar = parse_lit_str(input)?;
+            let check =
+                parse_quote!(|os: &::std::ffi::OsStr| ::bpaf::__private::parse_os_str(os).ok());
+            Consumer::Any {
+                metavar,
+                ty: None,
                 check,
                 span,
             }

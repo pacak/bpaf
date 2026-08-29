@@ -127,11 +127,12 @@ use std::{
 };
 
 #[doc(hidden)]
-pub mod __private {
+    pub mod __private {
     pub use crate::{
         api::composite::Sum,
         ctx::Ctx,
         error::Error,
+        os_str::parse_os_str,
         tasks::{JoinHandle, Kind},
         traits::{BoxParser, Item, Leaf, Parser, VKind, VisitGroup, Visited, Visitor},
     };
