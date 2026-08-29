@@ -28,3 +28,11 @@ path = "examples/any/combo.rs"
 [[example]]
 name = "any_derive"
 path = "examples/any/derive.rs"
+
+[[example]]
+name = "any_from_str"
+path = "examples/any_from_str/combo.rs"
+
+[[example]]
+name = "any_from_str_derive"
+path = "examples/any_from_str/derive.rs"

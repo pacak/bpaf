@@ -112,6 +112,8 @@ impl<T: 'static> Parser for Anything<T> {
 
 impl<T> Leaf for Anything<T> {}
 
+/// Parse a single arbitrary item as a value using [`FromStr`]
+#[doc = example_cd!("any_from_str")]
 pub fn any_from_str<T: FromStr + 'static>(meta: &'static str) -> Anything<T>
 where
     <T as FromStr>::Err: std::error::Error,
