@@ -76,7 +76,7 @@ impl OsStrExt for OsStr {
     }
 }
 
-pub(crate) fn parse_os_str<T>(os: &OsStr) -> Result<T, Problem>
+pub fn parse_os_str<T>(os: &OsStr) -> Result<T, Problem>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
