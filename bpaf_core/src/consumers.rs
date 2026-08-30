@@ -813,10 +813,16 @@ where
     PureWith { act }
 }
 
+/// Capture all remaining unrecognized/unparsed items
+///
+#[doc = example_cd!("leftovers")]
 pub fn leftovers<T>() -> Leftovers<T> {
     Leftovers { ctx: PhantomData }
 }
 
+/// A parser that captures all remaining unrecognized/unparsed items
+///
+/// Created with [`leftovers`]
 pub struct Leftovers<T> {
     ctx: PhantomData<T>,
 }

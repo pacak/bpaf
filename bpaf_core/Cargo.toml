@@ -44,3 +44,11 @@ path = "examples/fail/combo.rs"
 [[example]]
 name = "fail_derive"
 path = "examples/fail/derive.rs"
+
+[[example]]
+name = "leftovers"
+path = "examples/leftovers/combo.rs"
+
+[[example]]
+name = "leftovers_derive"
+path = "examples/leftovers/derive.rs"
