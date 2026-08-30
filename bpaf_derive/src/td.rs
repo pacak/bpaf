@@ -272,6 +272,15 @@ impl Parse for TopInfo {
             } else if kw == "max_width" {
                 let max_width = parse_arg(input)?;
                 with_options(&kw, options.as_mut(), |opt| opt.max_width = Some(max_width))?;
+            } else if kw == "or_else" {
+                if command.is_none() && parser.is_none() {
+                    return Err(Error::new_spanned(
+                        kw,
+                        "This annotation is not compatible with `options`",
+                    ));
+                }
+                let pd = PostDecor::parse(input, &kw)?.expect("or_else parses");
+                attrs.push(pd);
             } else if let Some(pd) = PostDecor::parse(input, &kw)? {
                 attrs.push(pd);
             } else {
