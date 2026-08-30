@@ -95,6 +95,9 @@ pub mod api {
     pub mod help {
         //! blurb about help rules
     }
+    pub mod algebra {
+        //! blurb about sums, products, etc
+    }
 }
 
 use crate::{

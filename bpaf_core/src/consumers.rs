@@ -927,6 +927,9 @@ pub struct Fail<T> {
     msg: &'static str,
 }
 
+/// Fail with a custom error message
+///
+#[doc = example_cd!("fail")]
 pub fn fail<T>(msg: &'static str) -> Fail<T> {
     Fail {
         ctx: PhantomData,
