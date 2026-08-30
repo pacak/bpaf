@@ -241,6 +241,9 @@ impl ToTokens for Top {
                     let long = long.iter().map(|v| quote!(.long(#v)));
                     let short = short.iter().map(|v| quote!(.short(#v)));
                     let help = help.as_ref().map(|v| quote!(.help(#v)));
+                    let (inner_attrs, cmd_attrs): (Vec<_>, Vec<_>) = attrs
+                        .iter()
+                        .partition(|a| !matches!(a, PostDecor::OrElseWith { .. }));
                     quote! {
                         #[doc(hidden)]
                         #vis fn #generate() -> impl ::bpaf::Parser<Output = #ty> {
@@ -248,7 +251,7 @@ impl ToTokens for Top {
                             #[allow(unused_imports)]
                             use ::bpaf::Parser;
                             #body
-                            #(.#attrs)*
+                            #(.#inner_attrs)*
                             .to_options()
                             #fallback_usage
                             #version
@@ -261,6 +264,7 @@ impl ToTokens for Top {
                             #(#short)*
                             #(#long)*
                             #help
+                            #(.#cmd_attrs)*
                             #adjacent
                             #boxed
                         }

@@ -172,6 +172,52 @@ fn top_enum_construct() {
 }
 
 #[test]
+fn or_else_top_enum() {
+    let top: Top = parse_quote! {
+        #[bpaf(or_else(failed))]
+        enum Opt { Foo, Bar }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow (unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let alt0 = ::bpaf::long("foo").req_flag(Opt::Foo);
+                let alt1 = ::bpaf::long("bar").req_flag(Opt::Bar);
+                ::bpaf::construct!([alt0, alt1,])
+            }
+            .or_else(failed())
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn or_else_top_command() {
+    let top: Top = parse_quote! {
+        #[bpaf(command, or_else(failed))]
+        struct Opt;
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow (unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::pure(Opt)
+                .to_options()
+                .command("opt")
+                .or_else(failed())
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn top_struct_options1() {
     let top: Top = parse_quote! {
         /// those are options
