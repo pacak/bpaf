@@ -321,6 +321,30 @@ fn check_many_files_implicit() {
 }
 
 #[test]
+fn or_else_postpr_named() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(argument("SPEED"), or_else(other_parser))]
+        speed: f64
+    };
+    let output = quote! {
+        ::bpaf::long("speed").argument::<f64>("SPEED").or_else(other_parser())
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn or_else_postpr_unnamed() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(positional("SPEED"), or_else(other_parser))]
+        f64
+    };
+    let output = quote! {
+        ::bpaf::positional::<f64>("SPEED").or_else(other_parser())
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn many_catch() {
     let input: NamedField = parse_quote! {
         #[bpaf(argument("FILE"), many, catch)]

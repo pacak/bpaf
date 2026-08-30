@@ -276,6 +276,7 @@ impl ToTokens for PostDecor {
             PostDecor::Hide { .. } => quote!(hide()),
             PostDecor::CustomUsage { usage, .. } => quote!(custom_usage(#usage)),
             PostDecor::HideUsage { .. } => quote!(hide_usage()),
+            PostDecor::OrElseWith { f, .. } => quote!(or_else(#f())),
         }
         .to_tokens(tokens);
     }
@@ -373,6 +374,10 @@ pub(crate) enum PostDecor {
     HideUsage {
         span: Span,
     },
+    OrElseWith {
+        span: Span,
+        f: Box<Path>,
+    },
 }
 impl PostDecor {
     fn span(&self) -> Span {
@@ -391,7 +396,8 @@ impl PostDecor {
             | Self::Guard { span, .. }
             | Self::Hide { span }
             | Self::CustomUsage { span, .. }
-            | Self::HideUsage { span } => *span,
+            | Self::HideUsage { span }
+            | Self::OrElseWith { span, .. } => *span,
         }
     }
 }
@@ -599,6 +605,9 @@ impl PostDecor {
         } else if kw == "custom_usage" {
             let usage = parse_arg(input)?;
             Self::CustomUsage { usage, span }
+        } else if kw == "or_else" {
+            let f = parse_arg(input)?;
+            Self::OrElseWith { span, f }
         } else {
             return Ok(None);
         }))
