@@ -61,6 +61,26 @@ fn nested_literal_success() {
 }
 
 #[test]
+fn pos_or_literal() {
+    let a = positional::<u32>("A").map(Err);
+    let b = literal("42").req_flag(42).map(Ok);
+
+    let parser = a.or_else(b).to_options();
+    let r = parser.run_inner("42").unwrap();
+    assert_eq!(r, Err(42));
+}
+
+#[test]
+fn literal_or_pos() {
+    let a = literal("42").req_flag(42).map(Ok);
+    let b = positional::<u32>("A").map(Err);
+
+    let parser = a.or_else(b).to_options();
+    let r = parser.run_inner("42").unwrap();
+    assert_eq!(r, Ok(42));
+}
+
+#[test]
 fn nested_flag_success() {
     let a = short('a')
         .req_flag(42)
