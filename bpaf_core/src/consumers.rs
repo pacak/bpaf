@@ -234,6 +234,13 @@ pub struct Keyword<T> {
     pub(crate) named: Literal,
 }
 
+impl<T> Keyword<T> {
+    pub fn help(mut self, help: &'static str) -> Self {
+        self.named.help = Some(help);
+        self
+    }
+}
+
 /// A precursor of the [`Keyword`] parser
 pub struct Literal {
     pub(crate) help: Option<&'static str>,
