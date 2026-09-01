@@ -52,3 +52,11 @@ path = "examples/leftovers/combo.rs"
 [[example]]
 name = "leftovers_derive"
 path = "examples/leftovers/derive.rs"
+
+[[example]]
+name = "literal"
+path = "examples/literal/combo.rs"
+
+[[example]]
+name = "literal_derive"
+path = "examples/literal/derive.rs"

@@ -254,12 +254,23 @@ impl<T> Keyword<T> {
     }
 }
 
-/// A precursor of the [`Keyword`] parser
+/// Precursor for named literal parsers - flags, switches, etc
+///
+/// Create with [`literal`]
+///
+/// Unlike [`Named`], parsers generated with `Literal` match named
+/// items without leading `--`: `litral("verbose")` will match user
+/// pass a literal `verbose`.
+///
+#[doc = example_cd!("literal")]
 pub struct Literal {
     pub(crate) help: Option<&'static str>,
     pub(crate) names: Vec<Lit<'static>>,
 }
 
+/// A builder for a literal flag with a long name (`verbose`)
+///
+#[doc = example_cd!("literal")]
 pub fn literal<N: Into<Cow<'static, str>>>(name: N) -> Literal {
     Literal {
         names: vec![Lit(Name::Long(name.into()))],
@@ -267,21 +278,35 @@ pub fn literal<N: Into<Cow<'static, str>>>(name: N) -> Literal {
     }
 }
 
+/// # Configuration methods
+///
+/// Configure matching names and help for literal parsers
 impl Literal {
+    /// Add a short name (`a`) to a literal matcher
+    ///
+    #[doc = example_cd!("literal")]
     pub fn short(mut self, name: char) -> Self {
         self.names.push(Lit(Name::Short(name)));
         self
     }
+
+    /// Add a long name (`alpha`) to a literal matcher
+    ///
+    #[doc = example_cd!("literal")]
     pub fn long<N: Into<Cow<'static, str>>>(mut self, name: N) -> Self {
         self.names.push(Lit(Name::Long(name.into())));
         self
     }
+
     pub fn help(mut self, help: &'static str) -> Self {
         self.help = Some(help);
         self
     }
 }
 
+/// # Parser finalization methods
+///
+/// Consume the builder and turn it into a command line [`Parser`]
 impl Literal {
     pub fn switch(self) -> Keyword<bool> {
         Keyword {

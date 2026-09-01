@@ -70,8 +70,8 @@ pub mod api {
         pub use crate::{
             anything::{AnyCheck, Anything},
             consumers::{
-                Argument, ArgumentLike, BasicArgument, Fail, Flag, Keyword, Leftovers, Named,
-                NegArgument, OnMissingValue, Positional,
+                Argument, ArgumentLike, BasicArgument, Fail, Flag, Keyword, Leftovers, Literal,
+                Named, NegArgument, OnMissingValue, Positional,
             },
         };
     }
