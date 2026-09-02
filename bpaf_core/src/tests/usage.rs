@@ -655,6 +655,48 @@ fn literal_with_nest() {
     assert_eq!(usage(&parser), expected);
 }
 
+#[test]
+fn custom_usage_replaces_subtree() {
+    let parser = short('a')
+        .long("aaa")
+        .argument::<String>("A")
+        .optional()
+        .custom_usage("--aaa=BINARY")
+        .to_options();
+    assert_eq!(usage(&parser), "--aaa=BINARY");
+}
+
+#[test]
+fn custom_usage_in_product() {
+    let a = short('a')
+        .argument::<String>("A")
+        .custom_usage("--aaa=AARG");
+    let b = short('b').argument::<String>("B");
+    let parser = construct!(a, b).to_options();
+    assert_eq!(usage(&parser), "--aaa=AARG -b=B");
+}
+
+#[test]
+fn custom_usage_in_sum() {
+    let a = short('a').req_flag(()).custom_usage("USE A");
+    let b = short('b').req_flag(());
+    let parser = construct!([a, b]).to_options();
+    assert_eq!(usage(&parser), "(USE A | -b)");
+}
+
+#[test]
+fn custom_usage_empty_hides_item() {
+    let a = short('a').req_flag(());
+    let b = short('b').req_flag(()).custom_usage("");
+    let parser = construct!(a, b).to_options();
+    assert_eq!(usage(&parser), "-a");
+
+    let a = short('a').req_flag(()).custom_usage("");
+    let b = short('b').req_flag(());
+    let parser = construct!([a, b]).to_options();
+    assert_eq!(usage(&parser), "-b");
+}
+
 // #[test]
 // fn many_strict() {
 //     let a = short('a').switch();

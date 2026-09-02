@@ -5,8 +5,8 @@
 use crate::{
     Ctx, Error, Exit, Named,
     adapters::{
-        Fallback, FallbackStr, FallbackWith, Global, Group, Guard, Hide, Map, OptionParser,
-        Optional, OrExit, Parse, ThenExit, WithOffset,
+        CustomUsage, Fallback, FallbackStr, FallbackWith, Global, Group, Guard, Hide, Map,
+        OptionParser, Optional, OrExit, Parse, ThenExit, WithOffset,
     },
     completions::CompHelp,
     composite::AndAlso,
@@ -310,6 +310,13 @@ pub trait Parser {
             inner: self,
             only_usage: true,
         }
+    }
+
+    fn custom_usage(self, usage: &'static str) -> CustomUsage<Self>
+    where
+        Self: Sized,
+    {
+        CustomUsage { inner: self, usage }
     }
 
     fn fallback(self, value: Self::Output) -> Fallback<Self::Output, Self>
