@@ -413,6 +413,31 @@ impl<P: Parser> Parser for Hide<P> {
 }
 
 impl<P: Leaf> Leaf for Hide<P> {}
+
+/// Replace how this parser renders in the "Usage" line
+pub struct CustomUsage<P> {
+    pub(crate) inner: P,
+    pub(crate) usage: &'static str,
+}
+
+impl<P: Parser> Parser for CustomUsage<P> {
+    type Output = P::Output;
+    fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> impl Future<Output = Result<P::Output, Error>> {
+        self.inner.eval(ctx)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        match visitor.identify() {
+            VKind::Usage if !self.usage.is_empty() => {
+                visitor.item(Item::Rendered { text: self.usage })
+            }
+            VKind::Usage => {}
+            _ => self.inner.visit(visitor),
+        }
+    }
+}
+
+impl<P: Leaf> Leaf for CustomUsage<P> {}
 pub struct Fallback<T: 'static, P> {
     pub(crate) inner: P,
     pub(crate) value: T,

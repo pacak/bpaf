@@ -45,7 +45,7 @@ pub mod api {
 
     pub mod composite {
         pub use crate::{
-            adapters::{OrExit, ThenExit},
+            adapters::{CustomUsage, OrExit, ThenExit},
             composite::{AndAlso, Sum},
             consumers::Nested,
             traits::Leaf,
@@ -127,7 +127,7 @@ use std::{
 };
 
 #[doc(hidden)]
-    pub mod __private {
+pub mod __private {
     pub use crate::{
         api::composite::Sum,
         ctx::Ctx,

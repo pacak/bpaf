@@ -225,6 +225,53 @@ Available options:
 }
 
 #[test]
+fn custom_usage_parser() {
+    let parser = short('a')
+        .long("aaa")
+        .help("A value")
+        .argument::<String>("ARG")
+        .custom_usage("--aaa=REPLACED")
+        .to_options();
+
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected_help = "\
+Usage: app --aaa=REPLACED
+
+Available options:
+    -a, --aaa=ARG  A value
+    -h, --help     Prints help information
+";
+    assert_eq!(help, expected_help);
+
+    let r = parser.run_inner("-a value").unwrap();
+    assert_eq!(r, "value");
+    let r = parser.run_inner("--aaa value").unwrap();
+    assert_eq!(r, "value");
+}
+
+#[test]
+fn custom_usage_hidden_from_help_section() {
+    let parser = short('a')
+        .long("aaa")
+        .argument::<String>("ARG")
+        .custom_usage("")
+        .to_options();
+
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected_help = "\
+Usage: app
+
+Available options:
+    -a, --aaa=ARG
+    -h, --help     Prints help information
+";
+    assert_eq!(help, expected_help);
+
+    let r = parser.run_inner("--aaa value").unwrap();
+    assert_eq!(r, "value");
+}
+
+#[test]
 fn fancy_meta() {
     let a = long("trailing-comma").argument::<String>("all|es5|none");
     let b = long("stdin-file-path").argument::<String>("PATH");
