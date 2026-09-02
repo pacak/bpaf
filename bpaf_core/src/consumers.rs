@@ -729,6 +729,8 @@ pub fn positional<T: 'static>(metavar: &'static str) -> Positional<T> {
 
 impl<T: 'static> Positional<T> {
     /// Make the parser only accept operands separated by a `--` marker
+    ///
+    #[doc = example_cd!("strict")]
     pub fn strict(mut self) -> Self {
         self.strict = true;
         self
