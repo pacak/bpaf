@@ -706,6 +706,8 @@ where
 }
 
 /// A parser for positional items - parses operands using [`FromStr`]
+///
+#[doc = example_cd!("positional")]
 pub struct Positional<T> {
     pub(crate) metavar: Metavar,
     pub(crate) help: Option<&'static str>,
@@ -713,6 +715,9 @@ pub struct Positional<T> {
     ctx: PhantomData<T>,
 }
 
+/// Parse a positional item - an operand on the command line
+///
+#[doc = example_cd!("positional")]
 pub fn positional<T: 'static>(metavar: &'static str) -> Positional<T> {
     Positional {
         metavar: Metavar(metavar),
@@ -723,11 +728,13 @@ pub fn positional<T: 'static>(metavar: &'static str) -> Positional<T> {
 }
 
 impl<T: 'static> Positional<T> {
+    /// Make the parser only accept operands separated by a `--` marker
     pub fn strict(mut self) -> Self {
         self.strict = true;
         self
     }
 
+    /// Switch the parser into POSIX mode - after the first operand named items are rejected
     pub fn posix(self) -> PosixPos<T> {
         PosixPos { pos: self }
     }

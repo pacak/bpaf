@@ -60,3 +60,11 @@ path = "examples/literal/combo.rs"
 [[example]]
 name = "literal_derive"
 path = "examples/literal/derive.rs"
+
+[[example]]
+name = "positional"
+path = "examples/positional/combo.rs"
+
+[[example]]
+name = "positional_derive"
+path = "examples/positional/derive.rs"
