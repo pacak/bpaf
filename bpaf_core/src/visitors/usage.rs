@@ -70,6 +70,10 @@ impl Usage<'_> {
                         Put::Command => {
                             _ = write!(&mut out, "{M}COMMAND{T} ...");
                         }
+                        Put::Literal { name } => match name {
+                            ShortOrLong::Short(s) => _ = write!(&mut out, "{L}{s}{T}"),
+                            ShortOrLong::Long(l) => _ = write!(&mut out, "{L}{l}{T}"),
+                        },
                         Put::Text { text } => {
                             out.push_str(text);
                         }
@@ -176,6 +180,10 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 strict,
             } => Put::Pos { meta, strict },
             Item::Command { .. } => Put::Command,
+            Item::Literal { names, .. } => match ShortOrLong::from_lits(names) {
+                Some(name) => Put::Literal { name },
+                None => return,
+            },
             Item::Nested { outer, inner } => {
                 let before = self.events.len();
                 let mut vn = VisitNest {
@@ -408,6 +416,22 @@ impl<'a> ShortOrLong<'a> {
             (Some(s), None) | (Some(s), Some(_)) => Some(ShortOrLong::Short(s)),
         }
     }
+
+    fn from_lits(lits: &'a [crate::Lit<'static>]) -> Option<Self> {
+        let mut short = None;
+        let mut long = None;
+        for lit in lits {
+            match &lit.0 {
+                crate::Name::Short(s) => short = short.or(Some(*s)),
+                crate::Name::Long(l) => long = long.or(Some(l.as_ref())),
+            }
+        }
+        match (short, long) {
+            (Some(s), _) => Some(ShortOrLong::Short(s)),
+            (None, Some(l)) => Some(ShortOrLong::Long(l)),
+            (None, None) => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -422,6 +446,9 @@ enum Put<'a> {
     },
 
     Command,
+    Literal {
+        name: ShortOrLong<'a>,
+    },
     Text {
         text: Cow<'a, str>,
     },
@@ -511,6 +538,10 @@ impl<'a> Visitor<'a> for VisitNest<'_, 'a> {
             | Item::Nested { .. }
             | Item::Section { .. } => unreachable!(),
             Item::Command { .. } => Put::Command,
+            Item::Literal { names, .. } => match ShortOrLong::from_lits(names) {
+                Some(name) => Put::Literal { name },
+                None => return,
+            },
             Item::Rendered { text } => Put::Text {
                 text: Cow::Owned(text.to_owned()),
             },

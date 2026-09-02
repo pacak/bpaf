@@ -306,12 +306,17 @@ impl Visited for () {
 impl<T: Clone + 'static> Parser for Keyword<T> {
     type Output = T;
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        let item = Item::Command {
+        let item = Item::Literal {
             names: &self.named.names,
             help: self.named.help,
-            inner: &(),
         };
-        visitor.item(item);
+        if self.absent.is_some() {
+            visitor.push_group(VisitGroup::Optional);
+            visitor.item(item);
+            visitor.pop_group();
+        } else {
+            visitor.item(item);
+        }
     }
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
         let res = ctx.parse_literal(&self.named).await?;

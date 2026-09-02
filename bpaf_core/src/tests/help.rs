@@ -1344,3 +1344,20 @@ Available options:
 
     assert_eq!(r, expected);
 }
+
+#[test]
+fn help_and_usage_for_literals() {
+    let a = literal("alpha").short('a').switch();
+    let parser = a.to_options();
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "Usage: app [a]
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    alpha, a
+";
+    assert_eq!(r, expected);
+}
