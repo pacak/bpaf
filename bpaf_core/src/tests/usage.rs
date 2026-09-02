@@ -1,5 +1,5 @@
 use crate::{
-    Parser, Visited, console_writer::Styled, construct, long, positional, pure, short,
+    Parser, Visited, console_writer::Styled, construct, literal, long, positional, pure, short,
     visitors::usage::Usage,
 };
 
@@ -610,6 +610,48 @@ fn global_optional_sum_in_sum() {
     let d = short('d').req_flag('d');
     let parser = construct!([g, d]).to_options();
     let expected = "[-a | -c | -d]";
+    assert_eq!(usage(&parser), expected);
+}
+
+#[test]
+fn literal_can_be_long() {
+    let a = literal("alpha").switch();
+    let parser = a.to_options();
+    let expected = "[alpha]";
+    assert_eq!(usage(&parser), expected);
+}
+
+#[test]
+fn literal_prefer_short() {
+    let a = literal("alpha").short('a').switch();
+    let parser = a.to_options();
+    let expected = "[a]";
+    assert_eq!(usage(&parser), expected);
+}
+
+#[test]
+fn literal_required_no_brackets() {
+    let a = literal("alpha").short('a').req_flag(());
+    let parser = a.to_options();
+    let expected = "a";
+    assert_eq!(usage(&parser), expected);
+}
+
+#[test]
+fn literal_or_flag() {
+    let a = literal("alpha").short('a').req_flag(false);
+    let b = short('b').switch();
+    let parser = a.or_else(b).to_options();
+    let expected = "[a | -b]";
+    assert_eq!(usage(&parser), expected);
+}
+
+#[test]
+fn literal_with_nest() {
+    let inner = positional::<usize>("POS");
+    let a = literal("alpha").nest(inner);
+    let parser = a.to_options();
+    let expected = "alpha {POS}";
     assert_eq!(usage(&parser), expected);
 }
 

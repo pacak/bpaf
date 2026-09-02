@@ -154,6 +154,13 @@ impl<'a> HelpItems<'a> {
         }
     }
 
+    pub fn literal(&self) -> Option<&LiteralItem<'a>> {
+        match self.0.as_slice() {
+            [HelpItem::Literal(item)] => Some(item),
+            _ => None,
+        }
+    }
+
     pub fn nested(&self) -> Option<&NestedItem<'a>> {
         match self.0.as_slice() {
             [HelpItem::Nested(item)] => Some(item),
@@ -224,6 +231,7 @@ pub enum HelpItem<'a> {
     Arg(ArgItem<'a>),
     Positional(PositionalItem<'a>),
     Command(CommandItem<'a>),
+    Literal(LiteralItem<'a>),
     Nested(NestedItem<'a>),
     Section(SectionItem<'a>),
     Rendered(String),
@@ -372,6 +380,38 @@ impl std::fmt::Display for CommandItem<'_> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct LiteralItem<'a> {
+    pub(crate) names: &'a [crate::Lit<'static>],
+    pub(crate) help: Option<&'a str>,
+}
+
+impl<'a> LiteralItem<'a> {
+    pub fn help(&self) -> Option<&'a str> {
+        self.help
+    }
+
+    pub fn names(&self) -> Vec<String> {
+        self.names.iter().map(|n| n.to_string()).collect()
+    }
+}
+
+impl std::fmt::Display for LiteralItem<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use crate::visitors::ShortLong;
+        write!(f, "{CMD}    ")?;
+        match crate::visitors::help::lit_name(self.names).0 {
+            ShortLong::Short(s) => write!(f, "{s}")?,
+            ShortLong::Long(l) => write!(f, "{l}")?,
+            ShortLong::Both(s, l) => write!(f, "{l}, {s}")?,
+        }
+        if let Some(help) = self.help {
+            write!(f, "\t{help}")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone)]
 pub struct NestedItem<'a> {
     pub(crate) outer: &'a dyn Visited,
@@ -425,7 +465,7 @@ impl Visitor<'_> for NestedWriter<'_, '_> {
                     _ = write!(self.f, "\t{help}");
                 }
             }
-            Item::Command { names, help, .. } => {
+            Item::Command { names, help, .. } | Item::Literal { names, help } => {
                 let name = crate::visitors::help::lit_name(names);
                 _ = write!(self.f, "{CMD}{name:#} {}", self.usage);
                 if let Some(help) = help {
@@ -527,6 +567,7 @@ impl std::fmt::Display for HelpItem<'_> {
             HelpItem::Arg(i) => i.fmt(f),
             HelpItem::Positional(i) => i.fmt(f),
             HelpItem::Command(i) => i.fmt(f),
+            HelpItem::Literal(i) => i.fmt(f),
             HelpItem::Nested(i) => i.fmt(f),
             HelpItem::Section(i) => i.fmt(f),
             HelpItem::Rendered(i) => i.fmt(f),
@@ -562,6 +603,10 @@ fn collect_help_items<'a>(inner: &'a dyn Visited) -> Vec<HelpItem<'a>> {
                 Item::Command { names, help, inner } => {
                     self.items
                         .push(HelpItem::Command(CommandItem { names, help, inner }));
+                }
+                Item::Literal { names, help } => {
+                    self.items
+                        .push(HelpItem::Literal(LiteralItem { names, help }));
                 }
                 Item::Nested { outer, inner } => {
                     self.items

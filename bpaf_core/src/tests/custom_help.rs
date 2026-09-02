@@ -3,6 +3,47 @@ use crate::{help::custom::*, *};
 use std::fmt::Write;
 
 #[test]
+fn literal_parser_custom_help() {
+    let parser = literal("alpha")
+        .short('a')
+        .help("A literal")
+        .req_flag(())
+        .help_callback(move |items| items.to_string())
+        .to_options();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "Usage: app a
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    alpha, a    A literal
+";
+    assert_eq!(expected, r);
+}
+
+#[test]
+fn literal_parser_no_help() {
+    let parser = literal("alpha")
+        .short('a')
+        .req_flag(())
+        .help_callback(move |items| items.to_string())
+        .to_options();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "Usage: app a
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    alpha, a
+";
+    assert_eq!(expected, r);
+}
+
+#[test]
 fn custom_help_nested_both() {
     let a = long("alpha")
         .help("outer a")
@@ -16,7 +57,7 @@ fn custom_help_nested_both() {
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
-    let expected = "Usage: app --alpha {A} COMMAND ...
+    let expected = "Usage: app --alpha {A} beta {B}
 
 Available options:
         --alpha A  outer a
@@ -341,7 +382,7 @@ fn custom_help_literal() {
     let parser = c.to_options();
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: app COMMAND ...
+Usage: app cmd
 
 Literal
   cmd           Runs the command

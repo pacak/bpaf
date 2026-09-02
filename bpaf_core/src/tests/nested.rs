@@ -41,7 +41,7 @@ fn keyword_nested_two_item_arg() {
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-  Usage: app [-l] COMMAND ...
+  Usage: app [-l] set {KEY VAL}
 
 Available options:
     -l, --long  with some help

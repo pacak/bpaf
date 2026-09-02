@@ -11,7 +11,7 @@
 
 ### Usage
 
-**`complex`** _`COMMAND`_ ... _`COMMAND`_ ... **`-m`** `{[`**`-v`**`]}` `[`**`-x`**`]` **`-a`** **`-b`** `[`**`--timeout`**=_`SEC`_`]` **`-p`**=_`PAT`_ `[`**`-i`**`]` _`EXTRA`_ **`--config`**=_`FILE`_ _`COMMAND`_ ... `[`**`-M`**`]`
+**`complex`** **`action`** **`set`** `{`_`KEY`_ _`VAL`_`}` **`-m`** `{[`**`-v`**`]}` `[`**`-x`**`]` **`-a`** **`-b`** `[`**`--timeout`**=_`SEC`_`]` **`-p`**=_`PAT`_ `[`**`-i`**`]` _`EXTRA`_ **`--config`**=_`FILE`_ _`COMMAND`_ ... `[`**`-M`**`]`
 
 ### Description
 

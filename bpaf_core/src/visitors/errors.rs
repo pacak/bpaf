@@ -61,6 +61,7 @@ impl<'a> Visitor<'a> for IsAcceptedOnce<'a> {
             Item::Nested { outer, .. } => outer.vi(self),
             Item::Positional { .. }
             | Item::Command { .. }
+            | Item::Literal { .. }
             | Item::Section { .. }
             | Item::Rendered { .. } => {}
         }
@@ -134,7 +135,8 @@ impl<'a> Visitor<'a> for BetterName<'a> {
             Item::Section { .. }
             | Item::Rendered { .. }
             | Item::Positional { .. }
-            | Item::Command { .. } => {}
+            | Item::Command { .. }
+            | Item::Literal { .. } => {}
         }
     }
 
@@ -156,7 +158,7 @@ impl<'a> Visitor<'a> for ValidCommand<'a> {
     fn item(&mut self, item: Item<'a, '_>) {
         match item {
             Item::OptionParser { inner, .. } => inner.vi(self),
-            Item::Command { names, .. } => {
+            Item::Command { names, .. } | Item::Literal { names, .. } => {
                 for name in names {
                     let Name::Long(name) = &name.0 else {
                         continue;
@@ -261,6 +263,7 @@ impl Visitor<'_> for IsDDash {
             }
             Item::Positional { .. }
             | Item::Command { .. }
+            | Item::Literal { .. }
             | Item::Section { .. }
             | Item::Rendered { .. } => {}
         }
@@ -333,6 +336,7 @@ impl<'a> Visitor<'a> for NestedCandidate<'a> {
         self.ctx = match item {
             Item::Flag { named } => named.names.first().map(Candidate::NamedFlag),
             Item::Command { names, .. } => names.first().map(Candidate::Keyword),
+            Item::Literal { names, .. } => names.first().map(Candidate::Keyword),
             _ => return,
         }
     }
@@ -381,7 +385,10 @@ impl<'a> Visitor<'a> for IsInCommand<'a> {
                     self.candidate = Some(ctx);
                 }
             }
-            Item::Positional { .. } | Item::Section { .. } | Item::Rendered { .. } => {}
+            Item::Positional { .. }
+            | Item::Literal { .. }
+            | Item::Section { .. }
+            | Item::Rendered { .. } => {}
         }
     }
 

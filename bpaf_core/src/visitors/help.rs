@@ -71,6 +71,7 @@ impl<'a> Visitor<'a> for GlobalOnly<'a> {
             | Item::Positional { .. }
             | Item::Section { .. }
             | Item::Nested { .. }
+            | Item::Literal { .. }
             | Item::Rendered { .. } => {}
         }
     }
@@ -345,6 +346,12 @@ impl<'a> Visitor<'a> for Help<'a> {
                 self.track_tab(name.col_width());
                 self.help(help);
             }
+            Item::Literal { names, help } => {
+                let name = lit_name(names);
+                self.write_buf(format_args!("{name:#}"));
+                self.track_tab(name.col_width());
+                self.help(help);
+            }
             Item::Nested { outer, inner } => {
                 let before = self.mut_buf().len();
 
@@ -488,6 +495,12 @@ impl<'a, 'b> Visitor<'b> for OuterNest<'a, 'b> {
                 self.help = help;
                 self.interesting = true;
             }
+            Item::Literal { names, help } => {
+                let name = lit_name(names);
+                self.buffers.write_buf(format_args!("{:#} ", name));
+                self.help = help;
+                self.interesting = true;
+            }
             _ => {}
         }
     }
@@ -544,7 +557,7 @@ impl Help<'_> {
             fn item<'t>(&mut self, item: Item<'_, 't>) {
                 self.place = match item {
                     Item::Flag { .. } | Item::Arg { .. } => Place::Named,
-                    Item::Command { .. } => Place::Command,
+                    Item::Command { .. } | Item::Literal { .. } => Place::Command,
                     Item::Positional { .. } => Place::Pos,
                     _ => return,
                 }
@@ -564,7 +577,7 @@ impl Help<'_> {
                 _ if self.in_global > 0 => Place::Global,
                 Item::Flag { .. } | Item::Arg { .. } => Place::Named,
                 Item::Positional { .. } => Place::Pos,
-                Item::Command { .. } => Place::Command,
+                Item::Command { .. } | Item::Literal { .. } => Place::Command,
                 Item::Nested { outer, .. } => {
                     let mut gp = GetPlace { place: self.place };
                     outer.vi(&mut gp);

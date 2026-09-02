@@ -477,6 +477,10 @@ pub enum Item<'a, 't> {
         help: Option<&'a str>,
         inner: &'a dyn Visited,
     },
+    Literal {
+        names: &'a [Lit<'static>],
+        help: Option<&'a str>,
+    },
 
     /// Items in this group belong to a single adjacent group and must succeed all
     /// at once or fail. For `--help` purposes this usually means that this is a parser
