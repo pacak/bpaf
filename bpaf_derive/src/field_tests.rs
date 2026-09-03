@@ -535,6 +535,42 @@ fn non_strict_positional_named_fields() {
 }
 
 #[test]
+fn posix_positional_named_fields() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(positional("ARG"), posix)]
+        name: String
+    };
+    let output = quote! {
+        ::bpaf::positional::<String>("ARG").posix()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn posix_positional_unnamed_fields() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(positional("ARG"), posix)]
+        String
+    };
+    let output = quote! {
+        ::bpaf::positional::<String>("ARG").posix()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn strict_posix_positional_named_fields() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(positional("ARG"), strict, posix)]
+        name: String
+    };
+    let output = quote! {
+        ::bpaf::positional::<String>("ARG").strict().posix()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn optional_named_pathed() {
     let input: NamedField = parse_quote! {
         #[bpaf(long, short)]
