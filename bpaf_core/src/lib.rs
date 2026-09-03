@@ -71,7 +71,7 @@ pub mod api {
             anything::{AnyCheck, Anything},
             consumers::{
                 Argument, ArgumentLike, BasicArgument, Fail, Flag, Keyword, Leftovers, Literal,
-                Named, NegArgument, OnMissingValue, Positional,
+                Named, NegArgument, OnMissingValue, Positional, PosixPos,
             },
         };
     }

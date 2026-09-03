@@ -737,6 +737,8 @@ impl<T: 'static> Positional<T> {
     }
 
     /// Switch the parser into POSIX mode - after the first operand named items are rejected
+    ///
+    #[doc = example_cd!("posix")]
     pub fn posix(self) -> PosixPos<T> {
         PosixPos { pos: self }
     }
@@ -804,6 +806,24 @@ where
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         self.pos.visit(visitor)
+    }
+}
+
+/// Parser for a [`positional`] item with a POSIX restriction
+///
+/// Once this parser succeeds - bpaf will treat any remaining items as positional
+///
+#[doc = example_cd!("posix")]
+impl<T: 'static> PosixPos<T> {
+    /// Mark POSIX [`positional`] parser as strict
+    ///
+    /// **Not really needed, just there for completeness: `strict` requires for positional to be
+    /// after the `--` separator, at this point POSIX restriction won't have any effect.**
+    ///
+    #[doc = example_cd!("strict")]
+    pub fn strict(self) -> Self {
+        let pos = self.pos.strict();
+        PosixPos { pos }
     }
 }
 
