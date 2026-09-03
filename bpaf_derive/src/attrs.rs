@@ -252,6 +252,7 @@ impl ToTokens for PostParse {
             PostParse::Parse { f, .. } => quote!(parse(#f)),
             PostParse::Strict { .. } => quote!(strict()),
             PostParse::NonStrict { .. } => quote!(non_strict()),
+            PostParse::Posix { .. } => quote!(posix()),
             PostParse::Anywhere { .. } => quote!(anywhere()),
         }
         .to_tokens(tokens);
@@ -295,6 +296,7 @@ pub(crate) enum PostParse {
     Parse { span: Span, f: Box<Expr> },
     Strict { span: Span },
     NonStrict { span: Span },
+    Posix { span: Span },
     Anywhere { span: Span },
 }
 impl PostParse {
@@ -311,6 +313,7 @@ impl PostParse {
             | Self::Parse { span, .. }
             | Self::Strict { span }
             | Self::NonStrict { span }
+            | Self::Posix { span }
             | Self::Anywhere { span } => *span,
         }
     }
@@ -551,6 +554,8 @@ impl PostParse {
             Self::Strict { span }
         } else if kw == "non_strict" {
             Self::NonStrict { span }
+        } else if kw == "posix" {
+            Self::Posix { span }
         } else if kw == "some" {
             let msg = parse_arg(input)?;
             Self::Some_ { span, msg }
