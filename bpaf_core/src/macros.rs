@@ -1,4 +1,151 @@
-/// Blurb
+/// Combine several `Parser`s into a single `Parser`
+///
+/// This macro combines several individual [`Parser`](crate::Parser)s into a single parser
+/// that produces a single Rust type. For example given `Parser`s for struct fields it can make
+/// a `Parser` that produce this `struct`. Additionally it can combine several different `Parser`s
+/// that produce values of the same type into a `Parser` that tries them all and picks the best one.
+///
+/// Value `construct!` returns also implements the `Parser` trait.
+///
+/// # Usage reference
+/// ```rust
+/// # use bpaf::*;
+/// # { struct Res(bool, bool, bool);
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // 1. structs with unnamed fields:
+/// let _ = construct!(Res(a, b, c));
+/// # }
+///
+/// # { struct Res { a: bool, b: bool, c: bool }
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // 2. structs with named fields:
+/// let _ = construct!(Res {a, b, c});
+/// # }
+///
+/// # { enum Ty { Res(bool, bool, bool) }
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // 3. enums with unnamed fields:
+/// let _ = construct!(Ty::Res(a, b, c));
+/// # }
+///
+/// # { enum Ty { Res { a: bool, b: bool, c: bool } }
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // 4. enums with named fields:
+/// let _ = construct!(Ty::Res {a, b, c});
+/// # }
+///
+/// # { let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // 5. tuples (see notes below):
+/// let _ = construct!(a, b, c);
+/// # }
+///
+/// # { let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // 6. parallel composition (see notes below):
+/// let _ = construct!([a, b, c]);
+/// # }
+/// ```
+///
+/// ## Notes:
+/// - A tuple of parsers of size up to 12 is a [`Parser`](crate::Parser) for a tuple, e.g.
+///   `construct!(a, b, c) ≈ (a, b, c)`.
+/// - For parallel composition `bpaf` tries all the parsers in a group and
+///   picks one that consumes the leftmost value; if parsers consume the same (or nothing), it picks
+///   the leftmost parser in the group.
+/// - Parallel composition is accessible using [`Parser::or_else`](crate::Parser::or_else) method.
+///   `construct!([a, b, c]) ≈ a.or_else(b).or_else(c)`. Parsers created with `construct!` are as
+///   efficient as the equivalent chain of `or_else` calls.
+///
+/// # Combinatoric usage
+/// `construct!` can compose parsers sequentially or in parallel.
+///
+/// Sequential composition combines individual parsers into a parser object of a new type. The
+/// composed parser yields a value of that type only when all of its constituent parsers
+/// succeed. Placeholder names for values inside `construct!` macro must correspond to both
+/// `struct`/`enum` names and parser names present in scope. In examples below `a` corresponds to a
+/// function and `b` corresponds to a variable name. Parentheses in `a()` are required when `a` is
+/// a function that produces a parser rather than a variable that holds a parser.
+///
+/// ```rust
+/// # use bpaf::*;
+/// // Functions can be shared across multiple `construct!` invocations
+/// fn a() -> impl Parser<Output = u32> {
+///     short('a').argument::<u32>("N")
+/// }
+///
+/// // Construction of structs or enums with unnamed fields
+/// struct Res (u32, u32);
+/// fn res() -> impl Parser<Output = Res> {
+///     let b = short('b').argument::<u32>("n");
+///     construct!(Res ( a(), b ))
+/// }
+///
+/// // Construction of structs or enums with named fields
+/// enum Ul {
+///     T { a: u32, b: u32 },
+/// }
+/// fn ult() -> impl Parser<Output = Ul> {
+///     let b = short('b').argument::<u32>("n");
+///     construct!(Ul::T { a(), b })
+/// }
+///
+/// // Construction of simple tuples
+/// fn tuple() -> impl Parser<Output = (u32, u32)> {
+///     let b = short('b').argument::<u32>("n");
+///     construct!(a(), b)
+/// }
+///
+/// // tuples of size up to 12 work without `construct!`
+/// fn short_tuple() -> impl Parser<Output = (u32, u32)> {
+///     (a(), short('b').argument::<u32>("n"))
+/// }
+/// ```
+///
+/// Parallel composition picks one of several available parsers (result types must match) and returns a
+/// parser object of the same type. As in sequential composition, parsers come from variables
+/// or functions:
+///
+/// ```rust
+/// # use bpaf::*;
+/// fn b() -> impl Parser<Output = u32> {
+///     short('b').argument::<u32>("NUM")
+/// }
+///
+/// fn a_or_b() -> impl Parser<Output = u32> {
+///     let a = short('a').argument::<u32>("NUM");
+/// // equivalent to `a.or_else(b())`
+/// construct!([a, b()])
+/// }
+/// ```
+///
+/// # Derive usage
+///
+/// `bpaf` combines fields of struct or enum constructors sequentially and enum
+/// variants in parallel.
+/// ```rust
+/// # use bpaf::*;
+/// // to satisfy this parser user needs to pass both `-a` and `-b`
+/// #[derive(Debug, Clone, Bpaf)]
+/// struct Res {
+///     a: u32,
+///     b: u32,
+/// }
+///
+/// // to satisfy this parser user needs to pass exactly one of `-a`, `-b`, `-c` or `-d`
+/// #[derive(Debug, Clone, Bpaf)]
+/// enum Enumeraton {
+///     A { a: u32 },
+///     B { b: u32 },
+///     C { c: u32 },
+///     D { d: u32 },
+/// }
+///
+/// // here user needs to pass either both `-a` AND `-b` or both `-c` AND `-d`
+/// #[derive(Debug, Clone, Bpaf)]
+/// enum Ult {
+///     AB { a: u32, b: u32 },
+///     CD { c: u32, d: u32 }
+/// }
+/// ```
 #[macro_export]
 macro_rules! construct {
     // sadly can't use $name:path around here since it conflicts with `(` in positional items
