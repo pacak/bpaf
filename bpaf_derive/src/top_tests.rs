@@ -1437,6 +1437,30 @@ fn max_width() {
 }
 
 #[test]
+fn help_parser() {
+    let input: Top = parse_quote! {
+        #[bpaf(options, help_parser(help::short_long))]
+        struct Opt {
+            verbose: bool,
+        }
+    };
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> ::bpaf::OptionParser<Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let verbose = ::bpaf::long("verbose").switch();
+                ::bpaf::construct!(Opt { verbose, })
+            }
+            .to_options()
+            .help_parser(help::short_long)
+        }
+    };
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn custom_bpaf_path_options() {
     let input: Top = parse_quote! {
         #[bpaf(options, path(::indirector::bpaf))]
