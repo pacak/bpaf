@@ -80,7 +80,7 @@ pub mod api {
     pub mod internal {
         pub use crate::{
             ctx::{Ctx, RawCtx},
-            traits::Visited,
+            traits::{BoxParser, Visited},
         };
     }
     pub mod helpers {

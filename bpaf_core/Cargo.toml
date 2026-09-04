@@ -22,6 +22,14 @@ name = "named_derive"
 path = "examples/named/derive.rs"
 
 [[example]]
+name = "help_parser"
+path = "examples/help_parser/combo.rs"
+
+[[example]]
+name = "help_parser_derive"
+path = "examples/help_parser/derive.rs"
+
+[[example]]
 name = "any"
 path = "examples/any/combo.rs"
 

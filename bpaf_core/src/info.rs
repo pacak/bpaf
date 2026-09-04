@@ -1,6 +1,9 @@
 //! All the customization is done though custom/info
 
-use crate::{Exit, OptionParser, Parser, console_writer::Colorscheme, help, traits::BoxParser};
+use crate::{
+    Exit, OptionParser, Parser, console_writer::Colorscheme, help, macros::example_cd,
+    traits::BoxParser,
+};
 
 pub struct Info {
     pub header: Option<&'static str>,
@@ -42,7 +45,12 @@ impl Info {
 }
 
 impl<T> OptionParser<T> {
-    /// Parser must consume at least one item, use [`Named::req_switch`] or similar
+    /// Override the parser `bpaf` uses to decide when and how to render the `--help`
+    ///
+    /// Parser must consume at least one item, use
+    /// [`Named::req_flag`](crate::api::primitives::Named::req_flag) or similar
+    ///
+    #[doc = example_cd!("help_parser")]
     pub fn help_parser(mut self, parser: impl Parser<Output = help::Help> + 'static) -> Self {
         self.info.help = Some(parser.then_exit(Exit::current_parser).into_box());
         self
