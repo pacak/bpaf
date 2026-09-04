@@ -14,7 +14,7 @@ impl<P: Parser> Parser for Cargo<P> {
 
     fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> {
         if ctx.shared.args.get(0).is_some_and(|v| v == self.name) {
-            ctx.cursor().update(|c| c + 1);
+            ctx.cursor().update(|c| if c == 0 { 1 } else { c });
         }
         self.inner.eval(ctx)
     }

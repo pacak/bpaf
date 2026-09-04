@@ -1325,6 +1325,7 @@ mod tests {
     mod git;
     mod global;
     mod help;
+    mod helpers;
     mod leftovers;
     mod nested;
     mod offset;
