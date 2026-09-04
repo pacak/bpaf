@@ -218,6 +218,7 @@ impl ToTokens for Top {
                     header,
                     max_width,
                     fallback_usage,
+                    help_parser: _,
                 } = options;
 
                 let version = version.as_ref().map(|v| quote!(.version(#v)));
@@ -283,6 +284,7 @@ impl ToTokens for Top {
                     header,
                     max_width,
                     fallback_usage,
+                    help_parser,
                 } = options;
                 let body = match cargo_helper {
                     Some(cargo) => quote!(::bpaf::cargo_helper(#cargo, #body)),
@@ -300,6 +302,7 @@ impl ToTokens for Top {
                 let footer = footer.as_ref().map(|v| quote!(.footer(#v)));
                 let header = header.as_ref().map(|v| quote!(.header(#v)));
                 let max_width = max_width.as_ref().map(|v| quote!(.max_width(#v)));
+                let help_parser = help_parser.as_ref().map(|v| quote!(.help_parser(#v)));
 
                 quote! {
                     #[doc(hidden)]
@@ -316,6 +319,7 @@ impl ToTokens for Top {
                         #footer
                         #usage
                         #max_width
+                        #help_parser
                     }
                 }
             }

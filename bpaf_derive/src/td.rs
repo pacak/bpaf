@@ -33,6 +33,7 @@ pub(crate) struct OptionsCfg {
     pub(crate) version: Option<Box<Expr>>,
     pub(crate) max_width: Option<Box<Expr>>,
     pub(crate) fallback_usage: bool,
+    pub(crate) help_parser: Option<Box<Expr>>,
 }
 
 #[derive(Debug, Default)]
@@ -272,6 +273,17 @@ impl Parse for TopInfo {
             } else if kw == "max_width" {
                 let max_width = parse_arg(input)?;
                 with_options(&kw, options.as_mut(), |opt| opt.max_width = Some(max_width))?;
+            } else if kw == "help_parser" {
+                if command.is_some() {
+                    return Err(Error::new_spanned(
+                        kw,
+                        "\"help_parser\" is only compatible with `options`",
+                    ));
+                }
+                let help_parser = parse_arg(input)?;
+                with_options(&kw, options.as_mut(), |opt| {
+                    opt.help_parser = Some(help_parser)
+                })?;
             } else if kw == "or_else" {
                 if command.is_none() && parser.is_none() {
                     return Err(Error::new_spanned(
