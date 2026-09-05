@@ -30,6 +30,14 @@ name = "help_parser_derive"
 path = "examples/help_parser/derive.rs"
 
 [[example]]
+name = "help_parser_advanced"
+path = "examples/help_parser_advanced/combo.rs"
+
+[[example]]
+name = "help_parser_advanced_derive"
+path = "examples/help_parser_advanced/derive.rs"
+
+[[example]]
 name = "any"
 path = "examples/any/combo.rs"
 

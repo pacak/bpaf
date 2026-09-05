@@ -51,6 +51,8 @@ impl<T> OptionParser<T> {
     /// [`Named::req_flag`](crate::api::primitives::Named::req_flag) or similar
     ///
     #[doc = example_cd!("help_parser")]
+    ///
+    #[doc = example_cd!("help_parser_advanced")]
     pub fn help_parser(mut self, parser: impl Parser<Output = help::Help> + 'static) -> Self {
         self.info.help = Some(parser.then_exit(Exit::current_parser).into_box());
         self
