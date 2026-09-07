@@ -6,6 +6,8 @@
 - all the type names
 - `Parser<T>` is now `Parser<Output = T>`
 - `literal("name")` -> `literal("name").req_flag(())`
+- `#[bpaf(guard("message", check))]` -> `#[bpaf(guard(check, "message"))]` - argument
+  order now matches `Parser::guard` signature
 
 - generate slightly better code in bpaf_derive
 

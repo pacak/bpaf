@@ -1,57 +1,8 @@
-use syn::{
-    Attribute, Expr, LitChar, LitStr, Result, parenthesized,
-    parse::{Parse, ParseStream},
-    token,
-};
+use syn::{Attribute, Ident, LitStr};
 
-pub(crate) fn parse_arg<T: Parse>(input: ParseStream) -> Result<T> {
-    let content;
-    let _ = parenthesized!(content in input);
-    content.parse::<T>()
-}
-
-pub(crate) fn parse_opt_arg<T: Parse>(input: ParseStream) -> Result<Option<T>> {
-    if input.peek(token::Paren) {
-        let content;
-        let _ = parenthesized!(content in input);
-        Ok(Some(content.parse::<T>()?))
-    } else {
-        Ok(None)
-    }
-}
-
-pub(crate) fn parse_arg2<A: Parse, B: Parse>(input: ParseStream) -> Result<(A, B)> {
-    let content;
-    let _ = parenthesized!(content in input);
-    let a = content.parse::<A>()?;
-    let _ = content.parse::<token::Comma>()?;
-    let b = content.parse::<B>()?;
-    Ok((a, b))
-}
-
-#[inline(never)]
-pub(crate) fn parse_lit_char(input: ParseStream) -> Result<LitChar> {
-    parse_arg(input)
-}
-
-#[inline(never)]
-pub(crate) fn parse_lit_str(input: ParseStream) -> Result<LitStr> {
-    parse_arg(input)
-}
-
-#[inline(never)]
-pub(crate) fn parse_expr(input: ParseStream) -> Result<Box<Expr>> {
-    Ok(Box::new(parse_arg(input)?))
-}
-
-pub(crate) fn parse_opt_metavar(input: ParseStream) -> Result<Option<LitStr>> {
-    let content;
-    Ok(if input.peek(syn::token::Paren) {
-        let _ = parenthesized!(content in input);
-        Some(content.parse::<LitStr>()?)
-    } else {
-        None
-    })
+/// Derive a long name from an identifier: `VerboseName` -> `"verbose-name"`
+pub(crate) fn ident_to_long(ident: &Ident) -> LitStr {
+    LitStr::new(&to_kebab_case(&ident.to_string()), ident.span())
 }
 
 pub(crate) fn doc_comment(attr: &Attribute) -> Option<String> {
@@ -76,6 +27,9 @@ pub(crate) fn doc_comment(attr: &Attribute) -> Option<String> {
 
 pub(crate) fn to_snake_case(input: &str) -> String {
     to_custom_case(input, '_')
+}
+pub(crate) fn snake_case_ident(input: &Ident) -> Ident {
+    Ident::new(&to_snake_case(&input.to_string()), input.span())
 }
 
 pub(crate) fn to_kebab_case(input: &str) -> String {

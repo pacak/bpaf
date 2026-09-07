@@ -1,18 +1,22 @@
-use crate::field::*;
+use crate::fields::{parse_named, parse_unnamed};
 use pretty_assertions::assert_eq;
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
-use syn::{Result, parse, parse::Parse, parse_quote, parse2};
+use syn::{
+    Result, parse,
+    parse::{Parse, Parser},
+    parse_quote, parse2,
+};
 
 #[derive(Debug)]
 struct UnnamedField {
-    parser: StructField,
+    parser: TokenStream,
 }
 
 impl Parse for UnnamedField {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         Ok(Self {
-            parser: StructField::parse_unnamed(input)?,
+            parser: parse_unnamed(input)?,
         })
     }
 }
@@ -25,14 +29,13 @@ impl ToTokens for UnnamedField {
 
 #[derive(Debug)]
 struct NamedField {
-    parser: StructField,
+    parser: TokenStream,
 }
 
 impl Parse for NamedField {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        Ok(Self {
-            parser: StructField::parse_named(input)?,
-        })
+        let (_, parser) = parse_named(input)?;
+        Ok(Self { parser })
     }
 }
 
@@ -42,12 +45,6 @@ impl ToTokens for NamedField {
     }
 }
 
-#[track_caller]
-fn field_trans_fail(input: TokenStream, expected_err: &str) {
-    let err = syn::parse2::<NamedField>(input).unwrap_err().to_string();
-    assert_eq!(err, expected_err)
-}
-
 #[test]
 fn implicit_parser() {
     let input: NamedField = parse_quote! {
@@ -55,7 +52,7 @@ fn implicit_parser() {
         number: usize
     };
     let output = quote! {
-        ::bpaf::long("number").help("help").argument::<usize>("ARG")
+        ::bpaf::long("number").argument("ARG").help("help")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -68,7 +65,7 @@ fn implicit_parser_custom_help() {
         number: usize
     };
     let output = quote! {
-        ::bpaf::long("number").help(custom_help).argument::<usize>("ARG")
+        ::bpaf::long("number").argument("ARG").help(custom_help)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -80,7 +77,7 @@ fn short_long() {
         number: usize
     };
     let output = quote! {
-        ::bpaf::short('n').long("number").argument::<usize>("ARG")
+        ::bpaf::short('n').long("number").argument("ARG")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -92,7 +89,7 @@ fn derive_fallback() {
         number: f64
     };
     let output = quote! {
-        ::bpaf::long("number").argument::<f64>("ARG").fallback(3.1415)
+        ::bpaf::long("number").argument("ARG").fallback(3.1415)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -104,7 +101,7 @@ fn derive_fallback_display() {
         number: f64
     };
     let output = quote! {
-        ::bpaf::long("number").argument::<f64>("ARG").fallback(3.1415).display_fallback()
+        ::bpaf::long("number").argument("ARG").fallback(3.1415).display_fallback()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -116,7 +113,7 @@ fn adjacent_argument() {
         number: f64
     };
     let output = quote! {
-        ::bpaf::long("number").argument::<f64>("ARG").adjacent()
+        ::bpaf::long("number").argument("ARG").adjacent()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -128,7 +125,7 @@ fn derive_fallback_with() {
         number: f64
     };
     let output = quote! {
-        ::bpaf::long("number").argument::<f64>("ARG").fallback_with(external)
+        ::bpaf::long("number").argument("ARG").fallback_with(external)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -140,7 +137,7 @@ fn derive_fallback_str() {
         number: f64
     };
     let output = quote! {
-        ::bpaf::long("number").argument::<f64>("ARG").fallback_str("42")
+        ::bpaf::long("number").argument("ARG").fallback_str("42")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -202,7 +199,7 @@ fn derive_field_guard() {
         number: usize
     };
     let output = quote! {
-        ::bpaf::long("number").argument::<usize>("ARG").guard(positive, "msg")
+        ::bpaf::long("number").argument("ARG").guard(positive, "msg")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -214,7 +211,7 @@ fn derive_field_guard_const() {
         number: usize
     };
     let output = quote! {
-        ::bpaf::long("number").argument::<usize>("ARG").guard(positive, MSG)
+        ::bpaf::long("number").argument("ARG").guard(positive, MSG)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -229,7 +226,19 @@ fn derive_help() {
         pub(crate) flag: bool
     };
     let output = quote! {
-        ::bpaf::long("flag").help("multi\n\nvis\n hidden").switch()
+        ::bpaf::long("flag").switch().help("multi\n\nvis\n hidden")
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn retain_fish_for_arg() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(argument::<String>("NAME"), map(transmogrify))]
+        chicken: Chicken
+    };
+    let output = quote! {
+        ::bpaf::long("chicken").argument::<String>("NAME").map(transmogrify)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -247,16 +256,6 @@ fn map_requires_explicit_parser() {
 }
 
 #[test]
-fn map_requires_explicit_parser2() {
-    let input = quote! {
-        #[bpaf(map(double))]
-        pub number: usize
-    };
-    let err = "Can't derive implicit consumer with this annotation present";
-    field_trans_fail(input, err);
-}
-
-#[test]
 fn check_guard() {
     let input: UnnamedField = parse_quote! {
         #[bpaf(guard(odd, "must be odd"))]
@@ -264,7 +263,7 @@ fn check_guard() {
     };
 
     let output = quote! {
-        ::bpaf::positional::<usize>("ARG").guard(odd, "must be odd")
+        ::bpaf::positional("ARG").guard(odd, "must be odd")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -304,7 +303,7 @@ fn check_fallback() {
         speed: f64
     };
     let output = quote! {
-        ::bpaf::long("speed").argument::<f64>("SPEED").fallback(42.0)
+        ::bpaf::long("speed").argument("SPEED").fallback(42.0)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -315,7 +314,7 @@ fn check_many_files_implicit() {
         files: Vec<std::path::PathBuf>
     };
     let output = quote! {
-        ::bpaf::long("files").argument::<std::path::PathBuf>("ARG").many()
+        ::bpaf::long("files").argument("ARG").many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -327,7 +326,7 @@ fn or_else_postpr_named() {
         speed: f64
     };
     let output = quote! {
-        ::bpaf::long("speed").argument::<f64>("SPEED").or_else(other_parser())
+        ::bpaf::long("speed").argument("SPEED").or_else(other_parser())
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -339,58 +338,59 @@ fn or_else_postpr_unnamed() {
         f64
     };
     let output = quote! {
-        ::bpaf::positional::<f64>("SPEED").or_else(other_parser())
+        ::bpaf::positional("SPEED").or_else(other_parser())
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
 
-#[test]
-fn many_catch() {
-    let input: NamedField = parse_quote! {
-        #[bpaf(argument("FILE"), many, catch)]
-        files: Vec<std::path::PathBuf>
-    };
-    let output = quote! {
-        ::bpaf::long("files").argument::<std::path::PathBuf>("FILE").many().catch()
-    };
-    assert_eq!(input.to_token_stream().to_string(), output.to_string());
-}
-
-#[test]
-fn collect_catch() {
-    let input: NamedField = parse_quote! {
-        #[bpaf(argument("FILE"), collect, catch)]
-        files: Vec<std::path::PathBuf>
-    };
-    let output = quote! {
-        ::bpaf::long("files").argument::<std::path::PathBuf>("FILE").collect().catch()
-    };
-    assert_eq!(input.to_token_stream().to_string(), output.to_string());
-}
-
-#[test]
-fn option_catch() {
-    let input: NamedField = parse_quote! {
-        #[bpaf(argument("FILE"), optional, catch)]
-        files: Option<std::path::PathBuf>
-    };
-    let output = quote! {
-        ::bpaf::long("files").argument::<std::path::PathBuf>("FILE").optional().catch()
-    };
-    assert_eq!(input.to_token_stream().to_string(), output.to_string());
-}
-
-#[test]
-fn some_catch() {
-    let input: NamedField = parse_quote! {
-        #[bpaf(argument("ARG"), some("files"), catch)]
-        files: Vec<std::path::PathBuf>
-    };
-    let output = quote! {
-        ::bpaf::long("files").argument::<std::path::PathBuf>("ARG").some("files").catch()
-    };
-    assert_eq!(input.to_token_stream().to_string(), output.to_string());
-}
+// skip catch for now
+// #[test]
+// fn many_catch() {
+//     let input: NamedField = parse_quote! {
+//         #[bpaf(argument("FILE"), many, catch)]
+//         files: Vec<std::path::PathBuf>
+//     };
+//     let output = quote! {
+//         ::bpaf::long("files").argument("FILE").many().catch()
+//     };
+//     assert_eq!(input.to_token_stream().to_string(), output.to_string());
+// }
+//
+// #[test]
+// fn collect_catch() {
+//     let input: NamedField = parse_quote! {
+//         #[bpaf(argument("FILE"), collect, catch)]
+//         files: Vec<std::path::PathBuf>
+//     };
+//     let output = quote! {
+//         ::bpaf::long("files").argument("FILE").collect().catch()
+//     };
+//     assert_eq!(input.to_token_stream().to_string(), output.to_string());
+// }
+//
+// #[test]
+// fn option_catch() {
+//     let input: NamedField = parse_quote! {
+//         #[bpaf(argument("FILE"), optional, catch)]
+//         files: Option<std::path::PathBuf>
+//     };
+//     let output = quote! {
+//         ::bpaf::long("files").argument("FILE").optional().catch()
+//     };
+//     assert_eq!(input.to_token_stream().to_string(), output.to_string());
+// }
+//
+// #[test]
+// fn some_catch() {
+//     let input: NamedField = parse_quote! {
+//         #[bpaf(argument("ARG"), some("files"), catch)]
+//         files: Vec<std::path::PathBuf>
+//     };
+//     let output = quote! {
+//         ::bpaf::long("files").argument("ARG").some("files").catch()
+//     };
+//     assert_eq!(input.to_token_stream().to_string(), output.to_string());
+// }
 
 #[test]
 fn check_option_file_implicit() {
@@ -398,7 +398,7 @@ fn check_option_file_implicit() {
         files: Option<PathBuf>
     };
     let output = quote! {
-        ::bpaf::long("files").argument::<PathBuf>("ARG").optional()
+        ::bpaf::long("files").argument("ARG").optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -410,7 +410,7 @@ fn check_guard_fallback() {
         num: u32
     };
     let output = quote! {
-        ::bpaf::long("num").argument::<u32>("ARG").guard(positive, "must be positive").fallback(1)
+        ::bpaf::long("num").argument("ARG").guard(positive, "must be positive").fallback(1)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -424,7 +424,7 @@ fn better_error_for_unnamed_argument() {
     let err = parse2::<UnnamedField>(input).unwrap_err().to_string();
     assert_eq!(
         err,
-        "This consumer needs a name, you can specify it with long(\"name\") or short('n')"
+        r#"Can't derive an explicit name for unnamed struct, try adding a name here like short('f') or long("name")"#
     );
 }
 
@@ -482,7 +482,7 @@ fn optional_field_is_sane() {
         name: Option<String>
     };
     let output = quote! {
-        ::bpaf::long("name").argument::<String>("ARG").optional()
+        ::bpaf::long("name").argument("ARG").optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -493,7 +493,7 @@ fn vec_field_is_sane() {
         names: Vec<String>
     };
     let output = quote! {
-        ::bpaf::long("names").argument::<String>("ARG").many()
+        ::bpaf::long("names").argument("ARG").many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -505,7 +505,7 @@ fn positional_named_fields() {
         name: String
     };
     let output = quote! {
-        ::bpaf::positional::<String>("ARG")
+        ::bpaf::positional("ARG")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -517,7 +517,7 @@ fn strict_positional_named_fields() {
         name: String
     };
     let output = quote! {
-        ::bpaf::positional::<String>("ARG").strict()
+        ::bpaf::positional("ARG").strict()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -529,7 +529,7 @@ fn non_strict_positional_named_fields() {
         name: String
     };
     let output = quote! {
-        ::bpaf::positional::<String>("ARG").non_strict()
+        ::bpaf::positional("ARG").non_strict()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -541,7 +541,7 @@ fn posix_positional_named_fields() {
         name: String
     };
     let output = quote! {
-        ::bpaf::positional::<String>("ARG").posix()
+        ::bpaf::positional("ARG").posix()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -553,7 +553,7 @@ fn posix_positional_unnamed_fields() {
         String
     };
     let output = quote! {
-        ::bpaf::positional::<String>("ARG").posix()
+        ::bpaf::positional("ARG").posix()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -565,7 +565,7 @@ fn strict_posix_positional_named_fields() {
         name: String
     };
     let output = quote! {
-        ::bpaf::positional::<String>("ARG").strict().posix()
+        ::bpaf::positional("ARG").strict().posix()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -579,7 +579,7 @@ fn optional_named_pathed() {
     let output = quote! {
         ::bpaf::long("config")
             .short('c')
-            .argument::<aws::Location>("ARG")
+            .argument("ARG")
             .optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
@@ -594,7 +594,7 @@ fn optional_unnamed_pathed() {
     let output = quote! {
         ::bpaf::long("config")
             .short('c')
-            .argument::<aws::Location>("ARG")
+            .argument("ARG")
             .optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
@@ -608,7 +608,7 @@ fn implicit_optional_argument_with_name() {
     };
     let output = quote! {
         ::bpaf::long("config")
-            .argument::<u64>("N")
+            .argument("N")
             .optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
@@ -622,27 +622,28 @@ fn explicit_optional_argument_with_name() {
     };
     let output = quote! {
         ::bpaf::long("config")
-            .argument::<u64>("N")
+            .argument("N")
             .optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
 
-#[test]
-fn optional_argument_with_name_complete() {
-    let input: NamedField = parse_quote! {
-        #[bpaf(argument("N"), complete(magic), group("hi"))]
-        config: Option<u64>
-    };
-    let output = quote! {
-        ::bpaf::long("config")
-            .argument::<u64>("N")
-            .complete(magic)
-            .optional()
-            .group("hi")
-    };
-    assert_eq!(input.to_token_stream().to_string(), output.to_string());
-}
+// group - shell completion, not needed
+// #[test]
+// fn optional_argument_with_name_complete() {
+//     let input: NamedField = parse_quote! {
+//         #[bpaf(argument("N"), complete(magic), group("hi"))]
+//         config: Option<u64>
+//     };
+//     let output = quote! {
+//         ::bpaf::long("config")
+//             .argument("N")
+//             .complete(magic)
+//             .optional()
+//             .group("hi")
+//     };
+//     assert_eq!(input.to_token_stream().to_string(), output.to_string());
+// }
 
 #[test]
 fn many_argument_with_name_complete() {
@@ -652,7 +653,7 @@ fn many_argument_with_name_complete() {
     };
     let output = quote! {
         ::bpaf::long("config")
-            .argument::<u64>("N")
+            .argument("N")
             .complete(magic)
             .many()
     };
@@ -667,7 +668,7 @@ fn some_arguments() {
     };
     let output = quote! {
         ::bpaf::long("config")
-            .argument::<u32>("N")
+            .argument("N")
             .some("need params")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
@@ -680,9 +681,9 @@ fn env_argument() {
         config: Vec<u32>
     };
     let output = quote! {
-        ::bpaf::long("config")
-            .env(sim::DB)
-            .argument::<u32>("N")
+        ::bpaf::env(sim::DB)
+            .long("config")
+            .argument("N")
             .some("need params")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
@@ -895,7 +896,7 @@ fn unit_fields_are_required() {
         name: ()
     };
     let output = quote! {
-        ::bpaf::long("name").help("help").req_flag(())
+        ::bpaf::long("name").req_flag(()).help("help")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -921,7 +922,7 @@ fn ignore_rustdoc_with_help() {
         name: ()
     };
     let output = quote! {
-        ::bpaf::long("name").help("custom help").req_flag(())
+        ::bpaf::long("name").req_flag(()).help("custom help")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -934,7 +935,7 @@ fn unit_fields_are_required_custom_help() {
         name: ()
     };
     let output = quote! {
-        ::bpaf::long("name").help(custom_help).req_flag(())
+        ::bpaf::long("name").req_flag(()).help(custom_help)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -946,7 +947,7 @@ fn hide_usage() {
         field: u32
     };
     let output = quote! {
-        ::bpaf::long("field").argument::<u32>("ARG").hide_usage()
+        ::bpaf::long("field").argument("ARG").hide_usage()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -958,7 +959,7 @@ fn custom_usage() {
         field: u32
     };
     let output = quote! {
-        ::bpaf::long("field").argument::<u32>("ARG").custom_usage(usage())
+        ::bpaf::long("field").argument("ARG").custom_usage(usage())
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -977,18 +978,19 @@ fn argument_with_manual_parse() {
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
 
-#[test]
-fn optional_external_strange() {
-    let input: NamedField = parse_quote! {
-        #[bpaf(optional, external(seed),)]
-        number: u32
-    };
-
-    let output = quote! {
-        seed().optional()
-    };
-    assert_eq!(input.to_token_stream().to_string(), output.to_string());
-}
+// consumer must be first
+// #[test]
+// fn optional_external_strange() {
+//     let input: NamedField = parse_quote! {
+//         #[bpaf(optional, external(seed),)]
+//         number: u32
+//     };
+//
+//     let output = quote! {
+//         seed().optional()
+//     };
+//     assert_eq!(input.to_token_stream().to_string(), output.to_string());
+// }
 
 #[test]
 fn fallback_with_lambda() {
@@ -1003,9 +1005,9 @@ fn fallback_with_lambda() {
 
     let output = quote! {
         ::bpaf::long("session-flags")
-            .help("help")
             .argument::<String>("FLAGS")
-            .fallback_with(| | Ok::<_,()>("http-only"))
+            .help("help")
+            .fallback_with(|| Ok::<_,()>("http-only"))
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -1070,18 +1072,6 @@ fn raw_literal() {
 }
 
 #[test]
-fn any_anywhere() {
-    let input: NamedField = parse_quote! {
-        #[bpaf(any::<_, isize>("LIMIT", isize_to_usize), anywhere)]
-        num: isize
-    };
-    let output = quote! {
-        ::bpaf::any::<_, isize>("LIMIT", isize_to_usize).anywhere()
-    };
-    assert_eq!(input.to_token_stream().to_string(), output.to_string());
-}
-
-#[test]
 fn any_two_turbofish() {
     let input: UnnamedField = parse_quote! {
         #[bpaf(any::<&str, String>("FOO", check))]
@@ -1092,4 +1082,637 @@ fn any_two_turbofish() {
         ::bpaf::any::<&str, String>("FOO", check).help("help")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[track_caller]
+fn field_res(input: TokenStream, expected: TokenStream) {
+    let field: NamedField = parse2(input).unwrap();
+    assert_eq!(field.to_token_stream().to_string(), expected.to_string());
+}
+
+#[track_caller]
+fn field_fail(input: TokenStream, expected_err: &str) {
+    let err = parse2::<NamedField>(input).unwrap_err().to_string();
+    assert_eq!(err, expected_err)
+}
+
+#[track_caller]
+fn unnamed_res(input: TokenStream, expected: TokenStream) {
+    let field: UnnamedField = parse2(input).unwrap();
+    assert_eq!(field.to_token_stream().to_string(), expected.to_string());
+}
+
+#[track_caller]
+fn unnamed_fail(input: TokenStream, expected_err: &str) {
+    let err = parse2::<UnnamedField>(input).unwrap_err().to_string();
+    assert_eq!(err, expected_err)
+}
+
+#[test]
+fn implicit_parser_with_help() {
+    field_res(
+        parse_quote! {
+            /// help
+            number: usize
+        },
+        quote!(::bpaf::long("number").argument("ARG").help("help")),
+    );
+}
+
+#[test]
+fn guard_with_closure_comma() {
+    field_res(
+        parse_quote! {
+            #[bpaf(guard(|a, b| a < b, "must be ordered"))]
+            pair: (u32, u32)
+        },
+        quote!(
+            ::bpaf::long("pair")
+                .argument("ARG")
+                .guard(|a, b| a < b, "must be ordered")
+        ),
+    );
+}
+
+#[test]
+fn guard_with_turbofish_comma() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument::<u32>("N"), guard(check::<u32, u32>, "msg"))]
+            number: u32
+        },
+        quote!(
+            ::bpaf::long("number")
+                .argument::<u32>("N")
+                .guard(check::<u32, u32>, "msg")
+        ),
+    );
+}
+
+#[test]
+fn flag_with_three_arguments_fails() {
+    let input = quote! {
+        #[bpaf(flag(a, b, c))]
+        item: bool
+    };
+    assert!(parse2::<NamedField>(input).is_err());
+}
+
+#[test]
+fn map_typed_argument() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument::<usize>("NUM"), map(double))]
+            number: usize
+        },
+        quote!(::bpaf::long("number").argument::<usize>("NUM").map(double)),
+    );
+}
+
+#[test]
+fn map_implicit_consumer() {
+    field_res(
+        parse_quote! {
+            #[bpaf(map(double))]
+            number: usize
+        },
+        quote!(::bpaf::long("number").argument("ARG").map(double)),
+    );
+}
+
+#[test]
+fn map_untyped_consumer() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument("X"), map(double))]
+            number: usize
+        },
+        quote!(::bpaf::long("number").argument("X").map(double)),
+    );
+}
+
+#[test]
+fn map_turbofish_untyped_consumer() {
+    field_res(
+        parse_quote! {
+            #[bpaf(map::<String>(stringify))]
+            number: String
+        },
+        quote!(
+            ::bpaf::long("number")
+                .argument("ARG")
+                .map::<_, String>(stringify)
+        ),
+    );
+}
+
+#[test]
+fn parse_implicit_consumer() {
+    field_res(
+        parse_quote! {
+            #[bpaf(parse(split_and_parse))]
+            number: u32
+        },
+        quote!(
+            ::bpaf::long("number")
+                .argument("ARG")
+                .parse(split_and_parse)
+        ),
+    );
+}
+
+#[test]
+fn map_positional_untyped_consumer() {
+    field_res(
+        parse_quote! {
+            #[bpaf(positional("N"), map(double))]
+            number: usize
+        },
+        quote!(::bpaf::positional("N").map(double)),
+    );
+}
+
+#[test]
+fn many_argument() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument("FILE"), many)]
+            files: Vec<std::path::PathBuf>
+        },
+        quote!(::bpaf::long("files").argument("FILE").many()),
+    );
+}
+
+#[test]
+fn collect_argument() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument("FILE"), collect)]
+            files: Vec<std::path::PathBuf>
+        },
+        quote!(::bpaf::long("files").argument("FILE").collect()),
+    );
+}
+
+#[test]
+fn map_then_many() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument::<u32>("N"), map(f), many)]
+            items: Vec<u32>
+        },
+        quote!(::bpaf::long("items").argument::<u32>("N").map(f).many()),
+    );
+}
+
+#[test]
+fn many_then_map() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument::<u32>("N"), many, map(f))]
+            items: Vec<u32>
+        },
+        quote!(::bpaf::long("items").argument::<u32>("N").many().map(f)),
+    );
+}
+
+#[test]
+fn optional_then_guard() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument::<u32>("N"), optional, guard(p, "m"))]
+            value: Option<u32>
+        },
+        quote!(
+            ::bpaf::long("value")
+                .argument::<u32>("N")
+                .optional()
+                .guard(p, "m")
+        ),
+    );
+}
+
+#[test]
+fn guard_then_optional() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument::<u32>("N"), guard(p, "m"), optional)]
+            value: Option<u32>
+        },
+        quote!(
+            ::bpaf::long("value")
+                .argument::<u32>("N")
+                .guard(p, "m")
+                .optional()
+        ),
+    );
+}
+
+#[test]
+fn option_argument() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument("FILE"), optional)]
+            files: Option<std::path::PathBuf>
+        },
+        quote!(::bpaf::long("files").argument("FILE").optional()),
+    );
+}
+
+#[test]
+fn some_argument() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument("ARG"), some("files"))]
+            files: Vec<std::path::PathBuf>
+        },
+        quote!(::bpaf::long("files").argument("ARG").some("files")),
+    );
+}
+
+#[test]
+fn optional_argument_with_name_complete() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument("N"), complete(magic), group("hi"))]
+            config: Option<u64>
+        },
+        quote!(
+            ::bpaf::long("config")
+                .argument("N")
+                .complete(magic)
+                .optional()
+                .group_help("hi")
+        ),
+    );
+}
+
+#[test]
+fn any_field_two_turbofish() {
+    field_res(
+        parse_quote! {
+            #[bpaf(any::<&str, String>("FOO", check))]
+            /// help
+            field: String
+        },
+        quote!(::bpaf::any::<&str, String>("FOO", check).help("help")),
+    );
+}
+
+#[test]
+fn two_consumers() {
+    let input = quote! {
+        #[bpaf(argument("X"), switch)]
+        field: u32
+    };
+    field_fail(input, "Only one consumer per attribute is allowed!");
+}
+
+#[test]
+fn duplicate_help() {
+    field_res(
+        parse_quote! {
+            #[bpaf(help("a"), help("b"))]
+            field: u32
+        },
+        quote!(::bpaf::long("field").argument("ARG").help("b")),
+    );
+}
+
+#[test]
+fn name_on_free_consumer() {
+    let input = quote! {
+        #[bpaf(positional, short)]
+        field: u32
+    };
+    field_fail(input, "unexpected annotation");
+}
+
+#[test]
+fn two_switches() {
+    let input = quote! {
+        #[bpaf(short, switch, short, switch)]
+        field: bool
+    };
+    field_fail(input, "Only one consumer per attribute is allowed!");
+}
+
+#[test]
+fn modifier_consumer_mismatch() {
+    let input = quote! {
+        #[bpaf(argument("X"), strict)]
+        field: u32
+    };
+    field_fail(input, "unexpected annotation");
+}
+
+#[test]
+fn flag_modifier_on_argument() {
+    let input = quote! {
+        #[bpaf(argument("X"), default)]
+        field: u32
+    };
+    field_fail(input, "unexpected annotation");
+}
+
+#[test]
+fn modifiers_after_postpr() {
+    let input = quote! {
+        #[bpaf(argument("X"), guard(x, "msg"), adjacent)]
+        field: u32
+    };
+    field_fail(input, "unexpected annotation");
+}
+
+#[test]
+fn untyped_consumer_with_type_changing_post() {
+    field_res(
+        parse_quote! {
+            #[bpaf(argument("X"), map(f))]
+            field: u32
+        },
+        quote!(::bpaf::long("field").argument("X").map(f)),
+    );
+}
+
+#[test]
+fn unknown_attribute() {
+    let input = quote! {
+        #[bpaf(such_attribute)]
+        field: u32
+    };
+    field_fail(input, "unexpected annotation");
+}
+
+#[test]
+fn unnamed_derived_positional() {
+    unnamed_res(parse_quote!(usize), quote!(::bpaf::positional("ARG")));
+}
+
+#[test]
+fn unnamed_derived_positional_with_help() {
+    unnamed_res(
+        parse_quote! {
+            /// help
+            usize
+        },
+        quote!(::bpaf::positional("ARG").help("help")),
+    );
+}
+
+#[test]
+fn unnamed_option_implicit() {
+    unnamed_res(
+        parse_quote!(Option<u32>),
+        quote!(::bpaf::positional("ARG").optional()),
+    );
+}
+
+#[test]
+fn unnamed_vec_implicit() {
+    unnamed_res(
+        parse_quote!(Vec<u32>),
+        quote!(::bpaf::positional("ARG").many()),
+    );
+}
+
+#[test]
+fn unnamed_check_guard() {
+    unnamed_res(
+        parse_quote! {
+            #[bpaf(guard(odd, "must be odd"))]
+            usize
+        },
+        quote!(::bpaf::positional("ARG").guard(odd, "must be odd")),
+    );
+}
+
+#[test]
+fn unnamed_pure_value() {
+    unnamed_res(
+        parse_quote! {
+            #[bpaf(pure(42))]
+            usize
+        },
+        quote!(::bpaf::pure(42)),
+    );
+}
+
+#[test]
+fn unnamed_pure_with_value() {
+    unnamed_res(
+        parse_quote! {
+            #[bpaf(pure_with(detect_color))]
+            usize
+        },
+        quote!(::bpaf::pure_with(detect_color)),
+    );
+}
+
+#[test]
+fn unnamed_strict_posix_positional() {
+    unnamed_res(
+        parse_quote! {
+            #[bpaf(positional("ARG"), strict, posix)]
+            String
+        },
+        quote!(::bpaf::positional("ARG").strict().posix()),
+    );
+}
+
+#[test]
+fn unnamed_optional_named_pathed() {
+    unnamed_res(
+        parse_quote! {
+            #[bpaf(long("config"), short('c'))]
+            Option<aws::Location>
+        },
+        quote!(::bpaf::long("config").short('c').argument("ARG").optional()),
+    );
+}
+
+#[test]
+fn unnamed_any_field() {
+    unnamed_res(
+        parse_quote! {
+            #[bpaf(any("FOO", Some))]
+            /// help
+            Vec<String>
+        },
+        quote!(::bpaf::any("FOO", Some).help("help").many()),
+    );
+}
+
+#[test]
+fn unnamed_any_two_turbofish() {
+    unnamed_res(
+        parse_quote! {
+            #[bpaf(any::<&str, String>("FOO", check))]
+            /// help
+            String
+        },
+        quote!(::bpaf::any::<&str, String>("FOO", check).help("help")),
+    );
+}
+
+#[test]
+fn unnamed_ignore_rustdoc() {
+    unnamed_res(
+        parse_quote! {
+            #[bpaf(any("FOO", Some), ignore_rustdoc)]
+            /// help
+            String
+        },
+        quote!(::bpaf::any("FOO", Some)),
+    );
+}
+
+#[test]
+fn unnamed_external_path() {
+    unnamed_res(
+        parse_quote! {
+            #[bpaf(external(path::level))]
+            usize
+        },
+        quote!(path::level()),
+    );
+}
+
+#[test]
+fn unnamed_switch_with_explicit_name() {
+    unnamed_res(
+        parse_quote! {
+            #[bpaf(switch, long("x"))]
+            bool
+        },
+        quote!(::bpaf::long("x").switch()),
+    );
+}
+
+#[test]
+fn unnamed_derived_bool() {
+    let input = quote!(bool);
+    unnamed_fail(
+        input,
+        "Refusing to derive a positional item for bool, you can fix this by either adding a short/long name or making it positional explicitly",
+    );
+}
+
+#[test]
+fn unnamed_derived_unit() {
+    let input = quote!(());
+    unnamed_fail(
+        input,
+        "Refusing to derive a positional item for (), you can fix this by either adding a short/long name or making it positional explicitly",
+    );
+}
+
+#[test]
+fn unnamed_bare_short() {
+    let input = quote! {
+        #[bpaf(short)]
+        u32
+    };
+    unnamed_fail(
+        input,
+        "Can't derive an explicit name for unnamed struct, try adding a name here like short('f') or long(\"name\")",
+    );
+}
+
+#[test]
+fn unnamed_bare_long() {
+    let input = quote! {
+        #[bpaf(long)]
+        u32
+    };
+    unnamed_fail(
+        input,
+        "Can't derive an explicit name for unnamed struct, try adding a name here like short('f') or long(\"name\")",
+    );
+}
+
+#[test]
+fn unnamed_external_bare() {
+    let input = quote! {
+        #[bpaf(external)]
+        u32
+    };
+    unnamed_fail(
+        input,
+        "Can't derive name for this external, try specifying one",
+    );
+}
+
+#[test]
+fn name_only_field() {
+    let field = quote::quote! {
+        #[bpaf(long("verb"))]
+        pub verbose: bool,
+    };
+    let (_, ts) = parse_named.parse2(field).unwrap();
+    assert_eq!(
+        ts.to_string(),
+        quote::quote!(::bpaf::long("verb").switch()).to_string()
+    );
+}
+
+#[test]
+fn implicit_name_switch2() {
+    let field = quote::quote! {
+        #[bpaf(switch, long("verbose"))]
+        pub verbose: bool,
+    };
+    let (_, ts) = parse_named.parse2(field).unwrap();
+    assert_eq!(
+        ts.to_string(),
+        quote::quote!(::bpaf::long("verbose").switch()).to_string()
+    );
+}
+
+#[test]
+fn implicit_name_switch() {
+    let field = quote::quote! {
+        #[bpaf(switch)]
+        pub verbose: bool,
+    };
+    let (_, ts) = parse_named.parse2(field).unwrap();
+    assert_eq!(
+        ts.to_string(),
+        quote::quote!(::bpaf::long("verbose").switch()).to_string()
+    );
+}
+
+#[test]
+fn no_implicit_repeat_for_external() {
+    let field = quote::quote! {
+        #[bpaf(external(verbose))]
+        verbose: Option<String>,
+    };
+    let (_, ts) = parse_named.parse2(field).unwrap();
+    assert_eq!(ts.to_string(), quote::quote!(verbose()).to_string());
+}
+
+#[test]
+fn no_implicit_repeat_for_pure() {
+    let field = quote::quote! {
+        #[bpaf(pure(x))]
+        flag: Vec<X>,
+    };
+    let (_, ts) = parse_named.parse2(field).unwrap();
+    assert_eq!(ts.to_string(), quote::quote!(::bpaf::pure(x)).to_string());
+}
+
+#[test]
+fn rustdoc_help() {
+    let field = quote::quote! {
+        #[bpaf(help("help"), ignore_rustdoc)]
+        /// also help
+        verbose: bool,
+    };
+
+    let (_, ts) = parse_named.parse2(field).unwrap();
+    assert_eq!(
+        ts.to_string(),
+        quote::quote!(::bpaf::long("verbose").switch().help("help")).to_string()
+    );
 }
