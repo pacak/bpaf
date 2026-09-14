@@ -45,7 +45,7 @@ pub mod api {
 
     pub mod composite {
         pub use crate::{
-            adapters::{CustomUsage, OrExit, ThenExit},
+            adapters::{Command, CustomUsage, OrExit, ThenExit},
             composite::{AndAlso, Sum},
             consumers::Nested,
             traits::Leaf,
@@ -79,7 +79,10 @@ pub mod api {
     pub mod algebras {}
     pub mod internal {
         pub use crate::{
+            args::Args,
+            console_writer::Styled,
             ctx::{Ctx, RawCtx},
+            error::ParseFailure,
             traits::{BoxParser, Visited},
         };
     }
