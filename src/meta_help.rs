@@ -623,7 +623,14 @@ impl Doc {
     pub(crate) fn write_help_item_groups(&mut self, mut items: HelpItems, include_env: bool) {
         while let Some(range) = items.find_group() {
             let mut dd = Dedup::default();
+            let mut adjacent = 0usize;
             for item in items.items.drain(range) {
+                match item {
+                    HelpItem::AdjacentStart { .. } => adjacent += 1,
+                    HelpItem::AdjacentStop { .. } => adjacent = adjacent.saturating_sub(1),
+                    _ if adjacent > 0 && !item.has_help() => continue,
+                    _ => {}
+                }
                 if dd.check(&item) {
                     write_help_item(self, &item, include_env);
                 }
