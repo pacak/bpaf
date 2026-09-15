@@ -126,6 +126,18 @@ impl Color {
 
 const PADDING: &str = "                                                  ";
 
+fn adjacent_gap(tokens: &[Token], ix: usize) -> Option<std::ops::Range<usize>> {
+    let end =
+        (ix + 1..tokens.len()).find(|&j| matches!(tokens[j], Token::BlockEnd(Block::Section4)))?;
+    if matches!(tokens.get(end + 1), Some(Token::BlockStart(Block::Block)))
+        && matches!(tokens.get(end + 2), Some(Token::BlockEnd(Block::Block)))
+    {
+        Some(end + 1..end + 3)
+    } else {
+        None
+    }
+}
+
 impl Doc {
     /// Render a monochrome version of the document
     ///
@@ -184,7 +196,12 @@ impl Doc {
 
         let mut pending_margin = false;
 
-        for token in self.tokens.iter().copied() {
+        let mut adjacent_skip: std::ops::Range<usize> = 0..0;
+
+        for (ix, token) in self.tokens.iter().copied().enumerate() {
+            if adjacent_skip.contains(&ix) {
+                continue;
+            }
             match token {
                 Token::Text { bytes, style } => {
                     let input = &self.payload[byte_pos..byte_pos + bytes];
@@ -271,9 +288,18 @@ impl Doc {
                             pending_newline = true;
                             margins.push(margin);
                         }
-                        Block::Section3 | Block::Section4 => {
+                        Block::Section3 => {
                             pending_newline = true;
                             margins.push(margin + 2);
+                        }
+                        Block::Section4 => {
+                            pending_newline = true;
+                            let mut margin = margin + 2;
+                            if let Some(stop) = adjacent_gap(&self.tokens, ix) {
+                                margin += 2;
+                                adjacent_skip = stop;
+                            }
+                            margins.push(margin);
                         }
                         Block::ItemTerm => {
                             pending_newline = true;

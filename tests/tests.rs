@@ -1682,13 +1682,11 @@ fn fancy_negative() {
 
     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
-    // TODO - rendering sucks once you start inventing fancy combinations and don't provide help...
     let expected = "\
 Usage: -a A [-c=C]
 
 Available options:
-  -a A
-
+    -a A
     -c=C
     -h, --help  Prints help information
 ";
