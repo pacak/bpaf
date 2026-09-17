@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.9.28] - 2026-09-17
+- more consistent formatting for .adjacent() items (#461)
+- try harder not to corrupt completion output with very long help
+
 ## bpaf [0.9.27], bpaf_derive [0.5.26] - 2026-07-29
 - improve error message if user passes an empty value to argument or positional
 
