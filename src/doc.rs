@@ -56,5 +56,15 @@ pub use crate::buffer::{Doc, MetaInfo, Style};
 #[cfg(feature = "docgen")]
 pub use crate::buffer::Section;
 
+// The parser description itself, for rendering documentation in a format bpaf doesn't produce.
+// Start from OptionParser::meta and OptionParser::info, then walk down the tree.
+#[doc(inline)]
+pub use crate::{
+    info::Info,
+    item::{Item, ShortLong},
+    meta::Meta,
+    meta_help::Metavar,
+};
+
 #[cfg(doc)]
 use crate::*;

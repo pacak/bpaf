@@ -10,9 +10,11 @@ use crate::{
 
 /// Information about the parser
 ///
-/// No longer public, users are only interacting with it via [`OptionParser`]
+/// Everything an [`OptionParser`] carries on top of the parser itself: the prose that surrounds a
+/// help message and the settings that shape it. Set it with the builder methods on
+/// [`OptionParser`], read it back with [`OptionParser::info`] or from
+/// [`Item::Command`](crate::doc::Item::Command) when documenting a subcommand.
 #[derive(Debug, Clone)]
-#[doc(hidden)]
 pub struct Info {
     /// version field, see [`version`][Info::version]
     pub version: Option<Doc>,
@@ -24,9 +26,13 @@ pub struct Info {
     pub footer: Option<Doc>,
     /// Custom usage field, see [`usage`][Info::usage]
     pub usage: Option<Doc>,
+    /// Parser for the help flag, see [`help_parser`][OptionParser::help_parser]
     pub help_arg: NamedArg,
+    /// Parser for the version flag, see [`version_parser`][OptionParser::version_parser]
     pub version_arg: NamedArg,
+    /// Print the help message when invoked with no arguments at all
     pub help_if_no_args: bool,
+    /// Width the help message is wrapped at, see [`max_width`][OptionParser::max_width]
     pub max_width: usize,
 }
 
@@ -708,6 +714,46 @@ impl<T> OptionParser<T> {
     pub fn max_width(mut self, width: usize) -> Self {
         self.info.max_width = width;
         self
+    }
+
+    /// Shape of the inner parser
+    ///
+    /// The same tree `--help` and the [documentation generators](crate::doc) are rendered from.
+    /// Walk it together with [`info`](OptionParser::info) to render the documentation of a whole
+    /// application in a format `bpaf` doesn't produce itself.
+    ///
+    /// # Usage
+    /// ```rust
+    /// # use bpaf::{*, doc::*};
+    /// fn long_names(meta: &Meta, names: &mut Vec<&'static str>) {
+    ///     match meta {
+    ///         Meta::Item(item) => {
+    ///             if let Item::Flag { name: ShortLong::Long(l) | ShortLong::Both(_, l), .. } = **item {
+    ///                 names.push(l);
+    ///             }
+    ///         }
+    ///         Meta::And(xs) | Meta::Or(xs) => for x in xs { long_names(x, names) },
+    ///         Meta::Optional(x) | Meta::Required(x) | Meta::Adjacent(x) | Meta::Many(x)
+    ///         | Meta::Subsection(x, _) | Meta::Suffix(x, _) | Meta::CustomUsage(x, _)
+    ///         | Meta::Strict(x) => long_names(x, names),
+    ///         Meta::Skip => {}
+    ///     }
+    /// }
+    ///
+    /// let options = short('v').long("verbose").switch().to_options();
+    /// let mut names = Vec::new();
+    /// long_names(&options.meta(), &mut names);
+    /// assert_eq!(names, ["verbose"]);
+    /// ```
+    #[must_use]
+    pub fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+
+    /// Description, header, footer and version attached to this parser
+    #[must_use]
+    pub fn info(&self) -> &Info {
+        &self.info
     }
 }
 
