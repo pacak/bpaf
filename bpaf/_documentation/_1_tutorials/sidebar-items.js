@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["_0_types_of_arguments","_1_combinatoric_api","_2_derive_api","_3_picking_type"]};
