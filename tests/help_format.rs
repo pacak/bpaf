@@ -658,6 +658,47 @@ fn help_and_version_newline() {
 }
 
 #[test]
+fn adjacent_in_group() {
+    let tag = long("meow").req_flag(());
+    let name = positional::<String>("name").help("a");
+    let value = positional::<String>("value").help("b");
+    let parser = construct!(tag, name, value)
+        .adjacent()
+        .group_help("potato")
+        .to_options();
+
+    let expected = "Usage: --meow <name> <value>
+
+potato
+  --meow <name> <value>
+    <name>      a
+    <value>     b
+
+Available options:
+    -h, --help  Prints help information
+";
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn adjacent_simple_not_fancy() {
+    let tag = long("meow").req_flag(());
+    let name = positional::<String>("name");
+    let value = positional::<String>("value");
+    let parser = construct!(tag, name, value).adjacent().to_options();
+
+    let expected = "Usage: --meow <name> <value>
+
+Available options:
+    --meow <name> <value>
+    -h, --help  Prints help information
+";
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    assert_eq!(r, expected);
+}
+
+#[test]
 fn fallback_to_usage_and_commands() {
     let parser = pure(())
         .to_options()
