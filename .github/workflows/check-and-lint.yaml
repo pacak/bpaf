@@ -23,7 +23,7 @@ jobs:
           toolchain: stable
 
       - name: Tests
-        run: cargo test -p bpaf -p bpaf_derive --all-targets --all-features --no-fail-fast
+        run: cargo test -p bpaf -p bpaf_core -p bpaf_derive --all-targets --all-features --no-fail-fast
 
   linux:
     name: Tests, formatting and clippy on linux
@@ -52,13 +52,13 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features
 
       - name: test minimal features
-        run: cargo test -p bpaf -p bpaf_derive --all-targets --no-default-features --no-fail-fast
+        run: cargo test -p bpaf -p bpaf_core -p bpaf_derive --all-targets --no-default-features --no-fail-fast
 
       - name: test default features
-        run: cargo test -p bpaf -p bpaf_derive --all-targets --no-fail-fast
+        run: cargo test -p bpaf -p bpaf_core -p bpaf_derive --all-targets --no-fail-fast
 
       - name: test all features
-        run: cargo test -p bpaf -p bpaf_derive --all-targets --all-features --no-fail-fast
+        run: cargo test -p bpaf -p bpaf_core -p bpaf_derive --all-targets --all-features --no-fail-fast
 
       - name: Example documentation
         run: cargo build --all-features -p docs2 &&  git diff && git diff-index --quiet HEAD --
