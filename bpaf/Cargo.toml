@@ -21,8 +21,8 @@ include = [
 
 
 [dependencies]
-bpaf_core = { path = "../bpaf_core", version = "=0.10.0" }
-bpaf_derive = { path = "../bpaf_derive", version = "=0.10.0", optional = true }
+bpaf_core = { workspace = true }
+bpaf_derive = { workspace = true, optional = true }
 
 [dev-dependencies]
 bpaf = { path = ".",  features = ["derive", "extradocs"] }
