@@ -12,9 +12,7 @@ fn starting_money() -> Result<u32, &'static str> {
 }
 
 fn options() -> OptionParser<Options> {
-    let name = long("name")
-        .help("Use a custom user name")
-        .argument("NAME");
+    let name = long("name").help("Use a custom user name").argument("NAME");
     let money = pure_with(starting_money);
     construct!(Options { name, money }).to_options()
 }
