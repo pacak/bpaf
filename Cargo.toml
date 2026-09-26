@@ -9,6 +9,29 @@ members =  [
     "./satis",
 ]
 
+[workspace.package]
+version = "0.10.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/pacak/bpaf"
+authors = ["Michael Baykov <manpacket@gmail.com>"]
 
 [workspace.metadata.cauwugo]
 bpaf = true
+
+[workspace.dependencies]
+anyhow = "1.0.102"
+bpaf_core = { version = "=0.10.0", path = "bpaf_core" }
+bpaf_derive = { version = "=0.10.0", path = "bpaf_derive" }
+cargo_metadata = "0.23"
+diff = "0.1"
+libc = "0.2.182"
+mio = { version = "1.1.1", default-features = false }
+pretty_assertions = "1.4"
+proc-macro2 = "1.0.27"
+ptyprocess = "0.5.0"
+quote = "1.0.9"
+rayon = "1.12"
+syn = "2.0.2"
+tempdir = "0.3.7"
+vt100 = "0.16.2"
