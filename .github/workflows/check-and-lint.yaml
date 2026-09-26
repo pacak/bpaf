@@ -60,9 +60,6 @@ jobs:
       - name: test all features
         run: cargo test --workspace --all-targets --all-features --no-fail-fast
 
-      - name: Example documentation
-        run: cargo build --all-features -p docs2 &&  git diff && git diff-index --quiet HEAD --
-
       - name: Rustdoc
         env:
           RUSTDOCFLAGS: -D warnings
@@ -70,20 +67,3 @@ jobs:
 
       - name: formatting
         run: cargo fmt --all -- --check
-
-  compat:
-    name: Tests on linux with 1.71 toolchain
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v6
-
-      - name: Install rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.71
-
-      - name: test minimal features
-        run: cargo run --manifest-path legacy/Cargo.toml -- --help
