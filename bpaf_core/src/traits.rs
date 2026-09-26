@@ -19,7 +19,7 @@ use crate::{
 use std::{borrow::Cow, boxed::Box, ffi::OsStr, marker::PhantomData, pin::Pin, rc::Rc};
 
 #[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
-/// Placeholder name used in help messages for [`Argument`] and [`Positional`]
+/// Placeholder name used in help messages for [`crate::Argument`] and [`crate::Positional`]
 pub struct Metavar(pub(crate) &'static str);
 impl Metavar {
     #[inline(never)]
@@ -52,7 +52,7 @@ impl std::fmt::Display for Metavar {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-/// A newtype wrapper for [`Name`] to make it a [`Literal`] name instead
+/// A newtype wrapper for [`Name`] to make it a [`crate::Literal`] name instead
 ///
 /// So no `-` or `--` for [`Display`](std::fmt::Display) and a helper
 pub struct Lit<'a>(pub(crate) Name<'a>);

@@ -967,7 +967,7 @@ where
 
 /// Parser that produces a failure with a given message
 ///
-/// Created with [`fail`] or [`success`], useful for custom error messages or things
+/// Created with [`fail`] or [`Exit::success`], useful for custom error messages or things
 /// like custom `--version` flags, designed to be used with [`Parser::or_exit`] and
 /// [`Parser::then_exit`]
 pub struct Exit<T>(pub(crate) InnerExit<T>);
