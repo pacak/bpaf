@@ -9,6 +9,12 @@ members =  [
     "./satis",
 ]
 
+[workspace.package]
+version = "0.10.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/pacak/bpaf"
+authors = ["Michael Baykov <manpacket@gmail.com>"]
 
 [workspace.metadata.cauwugo]
 bpaf = true
