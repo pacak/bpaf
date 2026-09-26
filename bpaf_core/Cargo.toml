@@ -9,7 +9,7 @@ edition = "2024"
 extradocs = []
 
 [dev-dependencies]
-pretty_assertions = "1.4"
+pretty_assertions = { workspace = true }
 bpaf = { path = "../bpaf", version = "0.10.0", features = ["derive", "extradocs"] }
 
 
