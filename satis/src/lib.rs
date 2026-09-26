@@ -25,8 +25,8 @@ pub struct FileOp {
 /// Parses a list of files, each file can be followed by zero or more indices
 fn find_md_files(dir: &std::path::Path) -> Result<Vec<PathBuf>, String> {
     let mut result = Vec::new();
-    let entries = std::fs::read_dir(dir)
-        .map_err(|e| format!("Failed to read directory {dir:?}: {e}"))?;
+    let entries =
+        std::fs::read_dir(dir).map_err(|e| format!("Failed to read directory {dir:?}: {e}"))?;
     for entry in entries {
         let entry = entry.map_err(|e| format!("Failed to read directory entry in {dir:?}: {e}"))?;
         let path = entry.path();
@@ -51,7 +51,9 @@ pub fn parse_file_op() -> impl bpaf::Parser<Vec<FileOp>> {
 
             if path.is_dir() {
                 if !indices.is_empty() {
-                    return Err(format!("Indices are not supported after directory {path:?}"));
+                    return Err(format!(
+                        "Indices are not supported after directory {path:?}"
+                    ));
                 }
                 let md_files = find_md_files(&path)?;
                 if md_files.is_empty() {
