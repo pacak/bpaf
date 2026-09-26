@@ -108,7 +108,7 @@ use crate::{
     args::Args,
     complete::CReq,
     console_writer::Styled,
-    consumers::{InnerExit, Literal, Named},
+    consumers::InnerExit,
     ctx::{Ctx, Op, RawCtx, Scope, SharedCtx, Triggers},
     error::{Error, ParseFailure, Problem},
     help::Help,
@@ -116,7 +116,7 @@ use crate::{
     os_str::OsStrExt,
     pecking::{Mixer, PeckingOrder},
     tasks::{ExitHandle, Id, JoinHandle, Kind, Parent, Task, TaskInfo, TaskState, Tasks},
-    traits::{BoxParser, Item, Leaf, Lit, Metavar, Name, VKind, VisitGroup, Visited, Visitor},
+    traits::{BoxParser, Item, Leaf, Lit, Metavar, VKind, VisitGroup, Visited, Visitor},
     utils::Vec1,
     visitors::errors::IsInCommand,
 };
@@ -125,9 +125,12 @@ use crate::{
 pub use crate::{
     adapters::OptionParser,
     anything::{any, any_from_str},
-    consumers::{Exit, env, fail, leftovers, literal, long, positional, pure, pure_with, short},
+    consumers::{
+        Argument, Exit, Literal, Named, Positional, env, fail, leftovers, literal, long,
+        positional, pure, pure_with, short,
+    },
     helpers::cargo_helper,
-    traits::Parser,
+    traits::{Name, Parser},
 };
 
 use std::{
