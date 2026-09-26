@@ -1,14 +1,14 @@
 [package]
 name = "bpaf_derive"
-version = "0.10.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 categories = ["command-line-interface"]
 description = "Derive macros for bpaf Command Line Argument Parser"
 keywords = ["args", "arguments", "cli", "parser", "parse"]
-authors = ["Michael Baykov <manpacket@gmail.com>"]
+authors.workspace = true
 readme = "README.md"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/pacak/bpaf"
+license.workspace = true
+repository.workspace = true
 
 [lib]
 name = "bpaf_derive"
