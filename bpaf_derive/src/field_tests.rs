@@ -171,6 +171,18 @@ fn derive_external_with_path() {
 }
 
 #[test]
+fn derive_external_with_expr() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(external(some_function_call(true, "foo")))]
+        number: f64
+    };
+    let output = quote! {
+        some_function_call(true, "foo")
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn derive_external_nohelp() {
     let input: NamedField = parse_quote! {
         /// help
