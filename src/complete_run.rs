@@ -1,19 +1,25 @@
 use crate::complete_gen::Complete;
 use std::ffi::OsStr;
 
-fn dump_bash_completer(name: &str) {
-    println!(
+fn bash_completer(name: &str) -> String {
+    format!(
         r#"_bpaf_dynamic_completion()
 {{
-    line="$1 --bpaf-complete-rev=8 ${{COMP_WORDS[@]:1}}"
-    if [[ ${{COMP_WORDS[-1]}} == "" ]]; then
-        line="${{line}} \"\""
-    fi
-    source <( eval ${{line}})
+    local line="$1 --bpaf-complete-rev=8"
+    local arg quoted
+    for arg in "${{COMP_WORDS[@]:1}}"; do
+        printf -v quoted '%q' "$arg"
+        line+=" $quoted"
+    done
+    source <(eval "$line")
 }}
 complete -o nosort -F _bpaf_dynamic_completion {name}"#,
         name = name,
-    );
+    )
+}
+
+fn dump_bash_completer(name: &str) {
+    println!("{}", bash_completer(name));
 }
 
 fn dump_zsh_completer(name: &str) {
@@ -109,5 +115,69 @@ impl ArgScanner<'_> {
     }
     pub(crate) fn done(&self) -> Option<Complete> {
         Some(Complete::new(self.revision?))
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::bash_completer;
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    #[test]
+    fn bash_completion_preserves_literal_arguments() {
+        let status = match Command::new("bash")
+            .args(["-c", "if [[ $BASH_VERSINFO -lt 4 ]]; then exit 64; fi"])
+            .status()
+        {
+            Ok(status) => status,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                eprintln!("Skipping Bash completion test: bash is not installed");
+                return;
+            }
+            Err(err) => panic!("Could not launch bash: {err}"),
+        };
+        if status.code() == Some(64) {
+            eprintln!("Skipping Bash completion test: Bash 4 or newer is required");
+            return;
+        }
+        assert!(status.success(), "Bash version check failed: {status}");
+        let script = format!(
+            r#"complete() {{ :; }}
+_bpaf_test() {{
+    printf 'printf "%%s\\0"'
+    printf ' %q' "$@"
+    printf '\n'
+}}
+{}
+COMP_WORDS=(_bpaf_test 'white space' 'unclosed"' '`literal`' '$(printf expanded)' $'line\nbreak' '')
+_bpaf_dynamic_completion _bpaf_test
+"#,
+            bash_completer("_bpaf_test")
+        );
+        let mut child = Command::new("bash")
+            .args(["--noprofile", "--norc"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(script.as_bytes())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(output.status.success());
+        assert!(
+            output.stderr.is_empty(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            output.stdout,
+            b"--bpaf-complete-rev=8\0white space\0unclosed\"\0`literal`\0$(printf expanded)\0line\nbreak\0\0"
+        );
     }
 }
