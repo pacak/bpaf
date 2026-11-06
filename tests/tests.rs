@@ -793,7 +793,7 @@ Usage: --key=KEY
 
 Available options:
         --key=KEY  use this secret key two lines
-                   [env:BPAF_SECRET_API_KEY: N/A]
+                   [env: BPAF_SECRET_API_KEY]
     -h, --help     Prints help information
 ";
     assert_eq!(expected_help, help);
@@ -805,7 +805,7 @@ Usage: --key=KEY
 
 Available options:
         --key=KEY  use this secret key two lines
-                   [env:BPAF_SECRET_API_KEY = \"top s3cr3t\"]
+                   [env: BPAF_SECRET_API_KEY]
     -h, --help     Prints help information
 ";
     assert_eq!(expected_help, help);
@@ -926,9 +926,9 @@ Usage: [-a] -c=B --bbbbb=CCC
 Available options:
     -a               help for a
     -c=B             help for b
-                     [env:BbBbB: N/A]
+                     [env: BbBbB]
         --bbbbb=CCC  help for ccc
-                     [env:ccccCCccc: N/A]
+                     [env: ccccCCccc]
     -h, --help       Prints help information
 ";
 

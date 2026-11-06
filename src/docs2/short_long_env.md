@@ -91,7 +91,7 @@ $ app --help<br>
 <dt><tt><b>-u</b></tt>, <tt><b>--user</b></tt>=<tt><i>USER</i></tt></dt>
 <dd>Custom user name</dd>
 <dt></dt>
-<dd>[env:USER1: N/A]</dd>
+<dd>[env: USER1]</dd>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>

@@ -53,7 +53,6 @@ fn collect_html(app: String, meta: &Meta, info: &Info) -> Doc {
             section.info,
             section.meta,
             &section.info.meta(),
-            false,
         );
         buf.doc(&b);
     }

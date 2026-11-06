@@ -12,7 +12,7 @@ Sometimes they even work.
 - **`    --user`**=_`USER`_ &mdash; 
   Log in as this user
    
-  Uses environment variable **`USER`**
+  [env: USER]
 - **`-a`** _`B`_
 
 

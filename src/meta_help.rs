@@ -354,7 +354,7 @@ impl Doc {
 }
 
 #[allow(clippy::too_many_lines)] // lines are _very_ boring
-fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
+fn write_help_item(buf: &mut Doc, item: &HelpItem) {
     match item {
         HelpItem::GroupStart { help, .. } => {
             buf.token(Token::BlockStart(Block::Block));
@@ -429,22 +429,14 @@ fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
                 buf.token(Token::BlockEnd(Block::ItemBody));
             }
             if let Some(env) = env {
-                let val = if std::env::var_os(env).is_some() {
-                    ": set"
-                } else {
-                    ": not set"
-                };
                 if help.is_some() {
                     buf.token(Token::BlockStart(Block::ItemTerm));
                     buf.token(Token::BlockEnd(Block::ItemTerm));
                 }
                 buf.token(Token::BlockStart(Block::ItemBody));
-                if include_env {
-                    buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
-                } else {
-                    buf.text("Uses environment variable ");
-                    buf.literal(env);
-                }
+                buf.text("[env: ");
+                buf.literal(env);
+                buf.text("]");
                 buf.token(Token::BlockEnd(Block::ItemBody));
             }
         }
@@ -467,23 +459,15 @@ fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
             }
 
             if let Some(env) = env {
-                let val = match std::env::var_os(env) {
-                    Some(s) => std::borrow::Cow::from(format!(" = {:?}", s.to_string_lossy())),
-                    None => std::borrow::Cow::Borrowed(": N/A"),
-                };
-
                 if help.is_some() {
                     buf.token(Token::BlockStart(Block::ItemTerm));
                     buf.token(Token::BlockEnd(Block::ItemTerm));
                 }
                 buf.token(Token::BlockStart(Block::ItemBody));
 
-                if include_env {
-                    buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
-                } else {
-                    buf.text("Uses environment variable ");
-                    buf.literal(env);
-                }
+                buf.text("[env: ");
+                buf.text(env);
+                buf.text("]");
 
                 buf.token(Token::BlockEnd(Block::ItemBody));
             }
@@ -526,7 +510,6 @@ pub(crate) fn render_help(
     info: &Info,
     parser_meta: &Meta,
     help_meta: &Meta,
-    include_env: bool,
 ) -> Doc {
     parser_meta.positional_invariant_check(false);
     let mut buf = Doc::default();
@@ -560,7 +543,7 @@ pub(crate) fn render_help(
     items.append_meta(parser_meta);
     items.append_meta(help_meta);
 
-    buf.write_help_item_groups(items, include_env);
+    buf.write_help_item_groups(items);
 
     if let Some(footer) = &info.footer {
         buf.token(Token::BlockStart(Block::Block));
@@ -620,7 +603,7 @@ impl Dedup {
 
 impl Doc {
     #[inline(never)]
-    pub(crate) fn write_help_item_groups(&mut self, mut items: HelpItems, include_env: bool) {
+    pub(crate) fn write_help_item_groups(&mut self, mut items: HelpItems) {
         while let Some(range) = items.find_group() {
             let mut dd = Dedup::default();
             let mut adjacent = 0usize;
@@ -632,7 +615,7 @@ impl Doc {
                     _ => {}
                 }
                 if dd.check(&item) {
-                    write_help_item(self, &item, include_env);
+                    write_help_item(self, &item);
                 }
             }
         }
@@ -642,12 +625,12 @@ impl Doc {
             (HiTy::Flag, "Available options:"),
             (HiTy::Command, "Available commands:"),
         ] {
-            self.write_help_items(&items, ty, name, include_env);
+            self.write_help_items(&items, ty, name);
         }
     }
 
     #[inline(never)]
-    fn write_help_items(&mut self, items: &HelpItems, ty: HiTy, name: &str, include_env: bool) {
+    fn write_help_items(&mut self, items: &HelpItems, ty: HiTy, name: &str) {
         let mut xs = items.items_of_ty(ty).peekable();
         if xs.peek().is_some() {
             self.token(Token::BlockStart(Block::Block));
@@ -658,7 +641,7 @@ impl Doc {
             let mut dd = Dedup::default();
             for item in xs {
                 if dd.check(item) {
-                    write_help_item(self, item, include_env);
+                    write_help_item(self, item);
                 }
             }
             self.token(Token::BlockEnd(Block::DefinitionList));
