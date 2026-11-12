@@ -818,6 +818,26 @@ Available options:
 }
 
 #[test]
+fn env_variable_parse_failure() {
+    let name = "BPAF_ENV_PARSE_T3";
+    std::env::set_var(name, "five");
+    let parser = long("key").env(name).argument::<u16>("KEY").to_options();
+
+    let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        "couldn't parse the value of environment variable `BPAF_ENV_PARSE_T3`: invalid digit found in string"
+    );
+
+    // a value from the command line takes precedence and is reported as usual
+    let r = parser
+        .run_inner(&["--key", "five"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "couldn't parse `five`: invalid digit found in string");
+}
+
+#[test]
 fn default_plays_nicely_with_command() {
     #[derive(Debug, Clone)]
     enum Foo {

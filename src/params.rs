@@ -644,14 +644,14 @@ impl<T> ParseArgument<T> {
         })
     }
 
-    fn take_argument(&self, args: &mut State) -> Result<OsString, Error> {
+    fn take_argument(&self, args: &mut State) -> Result<(OsString, Option<&'static str>), Error> {
         match args.take_arg(&self.named, self.adjacent, Metavar(self.metavar)) {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
                 if args.touching_last_remove() {
                     args.push_metavar(self.metavar, &self.named.help, true);
                 }
-                Ok(w)
+                Ok((w, None))
             }
             Err(err) => {
                 #[cfg(feature = "autocomplete")]
@@ -661,9 +661,14 @@ impl<T> ParseArgument<T> {
             _ => {
                 #[cfg(feature = "autocomplete")]
                 args.push_argument(&self.named, self.metavar);
-                if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
+                if let Some((name, val)) = self
+                    .named
+                    .env
+                    .iter()
+                    .find_map(|name| std::env::var_os(name).map(|val| (*name, val)))
+                {
                     args.current = None;
-                    return Ok(val);
+                    return Ok((val, Some(name)));
                 }
 
                 if let Some(item) = self.item() {
@@ -689,10 +694,13 @@ where
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
-        let os = self.take_argument(args)?;
+        let (os, env_name) = self.take_argument(args)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
-            Err(err) => Err(Error(Message::ParseFailed(args.current, err))),
+            Err(err) => Err(Error(match env_name {
+                Some(name) => Message::EnvParseFailed(name, err),
+                None => Message::ParseFailed(args.current, err),
+            })),
         }
     }
 
