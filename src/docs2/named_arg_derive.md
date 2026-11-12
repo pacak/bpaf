@@ -76,13 +76,13 @@ $ app --help<br>
 <dt><tt><b>    --database</b></tt>=<tt><i>ARG</i></tt></dt>
 <dd>Read information from the database</dd>
 <dt></dt>
-<dd>[env:DATABASE_VAR: N/A]</dd>
+<dd>[env: DATABASE_VAR]</dd>
 <dt><tt><b>-q</b></tt>, <tt><b>--quiet</b></tt></dt>
 <dd>Only print essential information</dd>
 <dt><tt><b>    --user</b></tt>=<tt><i>ARG</i></tt></dt>
 <dd>implicit long + env variable "USER"</dd>
 <dt></dt>
-<dd>[env:USER = "pacak"]</dd>
+<dd>[env: USER]</dd>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>

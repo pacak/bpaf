@@ -793,7 +793,7 @@ Usage: --key=KEY
 
 Available options:
         --key=KEY  use this secret key two lines
-                   [env:BPAF_SECRET_API_KEY: N/A]
+                   [env: BPAF_SECRET_API_KEY]
     -h, --help     Prints help information
 ";
     assert_eq!(expected_help, help);
@@ -805,7 +805,7 @@ Usage: --key=KEY
 
 Available options:
         --key=KEY  use this secret key two lines
-                   [env:BPAF_SECRET_API_KEY = \"top s3cr3t\"]
+                   [env: BPAF_SECRET_API_KEY]
     -h, --help     Prints help information
 ";
     assert_eq!(expected_help, help);
@@ -815,6 +815,26 @@ Available options:
 
     let res = parser.run_inner(&[]).unwrap();
     assert_eq!(res, "top s3cr3t");
+}
+
+#[test]
+fn env_variable_parse_failure() {
+    let name = "BPAF_ENV_PARSE_T3";
+    std::env::set_var(name, "five");
+    let parser = long("key").env(name).argument::<u16>("KEY").to_options();
+
+    let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        "couldn't parse the value of environment variable `BPAF_ENV_PARSE_T3`: invalid digit found in string"
+    );
+
+    // a value from the command line takes precedence and is reported as usual
+    let r = parser
+        .run_inner(&["--key", "five"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "couldn't parse `five`: invalid digit found in string");
 }
 
 #[test]
@@ -926,9 +946,9 @@ Usage: [-a] -c=B --bbbbb=CCC
 Available options:
     -a               help for a
     -c=B             help for b
-                     [env:BbBbB: N/A]
+                     [env: BbBbB]
         --bbbbb=CCC  help for ccc
-                     [env:ccccCCccc: N/A]
+                     [env: ccccCCccc]
     -h, --help       Prints help information
 ";
 

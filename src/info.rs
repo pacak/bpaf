@@ -255,7 +255,6 @@ impl<T> OptionParser<T> {
                 &self.info,
                 &self.inner.meta(),
                 &self.info.meta(),
-                true,
             );
             return Err(ParseFailure::Stdout(buffer, false));
         };
@@ -290,7 +289,6 @@ impl<T> OptionParser<T> {
                         &self.info,
                         &self.inner.meta(),
                         &self.info.meta(),
-                        true,
                     )
                 }
                 ExtraParams::Version(v) => {

@@ -80,7 +80,7 @@ header
 header
 
 Available options:
-    -p, --parser=ARG  [env:BPAF_VARIABLE: N/A]
+    -p, --parser=ARG  [env: BPAF_VARIABLE]
     -h, --help        Prints help information
     -V, --version     Prints version information
 
@@ -468,9 +468,9 @@ Usage: [--fonts=DIR] [--system-fonts]
 
 Available options:
         --fonts=DIR     Load fonts from this directory
-                        [env:OIKOS_FONTS: N/A]
+                        [env: OIKOS_FONTS]
         --system-fonts  Search for additional fonts in system directories
-                        [env:OIKOS_SYSTEM_FONTS: not set]
+                        [env: OIKOS_SYSTEM_FONTS]
     -h, --help          Prints help information
 ";
     assert_eq!(r, expected);

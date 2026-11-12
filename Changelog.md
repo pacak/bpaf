@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.9.29] - 2026-11-12
+- include env variable name if we tried to parse a value from it and failed
+- don't include env variable contents in --help output to avoid leaking secrets
+
 ## bpaf [0.9.28] - 2026-09-17
 - more consistent formatting for .adjacent() items (#461)
 - try harder not to corrupt completion output with very long help

@@ -53,6 +53,9 @@ pub(crate) enum Message {
     /// Parser provided by user failed to parse a value
     ParseFailed(Option<usize>, String),
 
+    /// Parser provided by user failed to parse a value taken from an environment variable
+    EnvParseFailed(&'static str, String),
+
     /// Parser provided by user failed to validate a value
     GuardFailed(Option<usize>, &'static str),
 
@@ -95,6 +98,7 @@ impl Message {
             | Message::NonStrictPos(_, _) => true,
             Message::StrictPos(_, _)
             | Message::ParseFailed(_, _)
+            | Message::EnvParseFailed(_, _)
             | Message::GuardFailed(_, _)
             | Message::Unconsumed(_)
             | Message::Ambiguity(_, _)
@@ -394,6 +398,16 @@ impl Message {
                     }
                     doc.token(Token::BlockEnd(Block::TermRef));
                 }
+                doc.text(": ");
+                doc.text(&s);
+            }
+
+            // Error: couldn't parse the value of environment variable FOO: <FromStr message>
+            Message::EnvParseFailed(name, s) => {
+                doc.text("couldn't parse the value of environment variable ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.invalid(name);
+                doc.token(Token::BlockEnd(Block::TermRef));
                 doc.text(": ");
                 doc.text(&s);
             }
