@@ -7,9 +7,19 @@ use crate::{
     Meta,
 };
 
-#[doc(hidden)]
+/// Placeholder shown in place of a value a parser consumes
+///
+/// `FILE` in `--config <FILE>`, stored without the surrounding angle brackets.
 #[derive(Debug, Clone, Copy)]
 pub struct Metavar(pub(crate) &'static str);
+
+impl Metavar {
+    /// Placeholder name, without the surrounding angle brackets
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
+        self.0
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum HelpItem<'a> {
